@@ -44,6 +44,18 @@ def list_cmd(limit: int = typer.Option(30, "--limit"), as_json: bool = typer.Opt
     ...
 ```
 
+`--json` output shapes, which other scripts may depend on:
+
+| Command | Shape |
+|---|---|
+| `list`, `search` | array of rows |
+| `show` | `{session, messages, links}` |
+| `links` | array of `{session, type, note}` |
+| `link` | `{a, b, type, note, created}` |
+| `unlink` | `{a, b, removed}` |
+| `handoff` | `{session, pack, copied}` |
+| `import` | array of `{source, sessions, messages, skipped, links, up_to_date}`. The internal `skipped == -1` sentinel becomes `up_to_date: true` with `skipped: 0`. |
+
 Known gaps are listed in [plans/backlog.md](plans/backlog.md).
 
 ## Dependencies

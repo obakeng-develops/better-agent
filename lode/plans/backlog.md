@@ -6,7 +6,6 @@ Known gaps between the code, the README, and conventions. Nothing here is decide
 
 See [../practices.md](../practices.md#cli-design).
 
-- **`--json` is inconsistent.** Only `list`, `search`, and `show` take it, not `import`, `links`, `link`, `unlink`, or `handoff`.
 - **`search` catches every exception** when it falls back to quoting the query. A real database error turns into a second, confusing query. Catch `sqlite3.OperationalError` only.
 - **Status messages go to stdout.** For example `✓ copied …` and `removed N link(s)`. clig.dev sends them to stderr.
 - **`import` shows no progress** while parsing files. Only the FTS rebuild has a spinner, so a large first import looks stuck.
@@ -16,7 +15,6 @@ See [../practices.md](../practices.md#cli-design).
 
 ## Other
 
-- **README overstates `--json`.** It says every command takes `--json`.
 - **The README doesn't mention** `unlink` or `--max-chars`.
 - **Reversed duplicate links.** `(a, b, type)` and `(b, a, type)` can both exist. See [../index/summary.md](../index/summary.md).
 - **`--copy` works on macOS only** (`pbcopy`).

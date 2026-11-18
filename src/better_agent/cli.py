@@ -82,8 +82,16 @@ def resolve_or_exit(conn, prefix: str):
     return row
 
 
+def print_json(obj) -> None:
+    console.print_json(json.dumps(obj, default=str))
+
+
 def session_to_dict(row) -> dict:
     return {k: row[k] for k in row.keys()}
+
+
+def links_to_json(links) -> list[dict]:
+    return [{"session": session_to_dict(o), "type": t, "note": n} for o, t, n in links]
 
 
 def linked_sessions(conn, sid: str) -> list[tuple[object, str, str | None]]:
@@ -103,6 +111,7 @@ def import_cmd(
     source: str = typer.Option(None, "--source", "-s", callback=norm_source,
                                help="claude | opencode (default: both)"),
     force: bool = typer.Option(False, "--force", help="re-import everything, ignore cached state"),
+    as_json: bool = typer.Option(False, "--json"),
 ):
     """Scan known sources and import new/updated sessions."""
     conn = dbm.connect()
@@ -114,10 +123,18 @@ def import_cmd(
         stats.append(opencode.do_import(conn, force=force))
 
     if sum(s["messages"] for s in stats):
-        with console.status("rebuilding search index…"):
+        with err.status("rebuilding search index…"):
             dbm.rebuild_fts(conn)
             conn.commit()
 
+    if as_json:
+        print_json([
+            {"source": s["source"], "sessions": s["sessions"], "messages": s["messages"],
+             "skipped": max(s["skipped"], 0), "links": s.get("links", 0),
+             "up_to_date": s["skipped"] == -1}
+            for s in stats
+        ])
+        return
     for s in stats:
         if s.get("skipped") == -1:
             console.print(f"[bold]{s['source']}[/bold]: up to date")
@@ -156,7 +173,7 @@ def list_cmd(
     rows = conn.execute(sql, (*params, limit)).fetchall()
 
     if as_json:
-        console.print_json(json.dumps([session_to_dict(r) for r in rows], default=str))
+        print_json([session_to_dict(r) for r in rows])
         return
 
     table = Table(show_lines=False)
@@ -210,7 +227,7 @@ def search_cmd(
         rows = run(quoted)
 
     if as_json:
-        console.print_json(json.dumps([dict(r) for r in rows], default=str))
+        print_json([dict(r) for r in rows])
         return
     if not rows:
         console.print("[dim]no matches[/dim]")
@@ -238,11 +255,11 @@ def show_cmd(
     links = linked_sessions(conn, s["id"])
 
     if as_json:
-        console.print_json(json.dumps({
+        print_json({
             "session": session_to_dict(s),
             "messages": [dict(m) for m in messages],
-            "links": [{"session": session_to_dict(o), "type": t, "note": n} for o, t, n in links],
-        }, default=str))
+            "links": links_to_json(links),
+        })
         return
 
     console.print(f"[bold]{s['title']}[/bold]")
@@ -284,6 +301,7 @@ def link_cmd(
     type: str = typer.Option("related", "--type", "-t",
                              help="related | continuation | handoff | fork | subagent"),
     note: str = typer.Option(None, "--note"),
+    as_json: bool = typer.Option(False, "--json"),
 ):
     """Link two sessions (e.g. bta link a1b2 9f8e -t continuation)."""
     conn = dbm.connect()
@@ -293,6 +311,9 @@ def link_cmd(
         raise typer.Exit(1)
     created = dbm.insert_link(conn, sa["id"], sb["id"], type, note)
     conn.commit()
+    if as_json:
+        print_json({"a": sa["id"], "b": sb["id"], "type": type, "note": note, "created": created})
+        return
     if created:
         console.print(f"✓ {sa['id']} ⚭ {sb['id']}  [dim]({type}{' — ' + note if note else ''})[/dim]")
     else:
@@ -300,11 +321,17 @@ def link_cmd(
 
 
 @app.command("links")
-def links_cmd(session_id: str):
+def links_cmd(
+    session_id: str,
+    as_json: bool = typer.Option(False, "--json"),
+):
     """Show sessions linked to this one."""
     conn = dbm.connect()
     s = resolve_or_exit(conn, session_id)
     links = linked_sessions(conn, s["id"])
+    if as_json:
+        print_json(links_to_json(links))
+        return
     if not links:
         console.print("[dim]no links[/dim]")
         return
@@ -316,7 +343,11 @@ def links_cmd(session_id: str):
 
 
 @app.command("unlink")
-def unlink_cmd(a: str, b: str):
+def unlink_cmd(
+    a: str,
+    b: str,
+    as_json: bool = typer.Option(False, "--json"),
+):
     """Remove all links between two sessions."""
     conn = dbm.connect()
     sa, sb = resolve_or_exit(conn, a), resolve_or_exit(conn, b)
@@ -325,6 +356,9 @@ def unlink_cmd(a: str, b: str):
         (sa["id"], sb["id"], sb["id"], sa["id"]),
     )
     conn.commit()
+    if as_json:
+        print_json({"a": sa["id"], "b": sb["id"], "removed": cur.rowcount})
+        return
     console.print(f"removed {cur.rowcount} link(s)")
 
 
@@ -334,6 +368,7 @@ def handoff_cmd(
     full: bool = typer.Option(False, "--full", help="include the whole transcript"),
     max_chars: int = typer.Option(8000, "--max-chars"),
     copy: bool = typer.Option(False, "--copy", help="copy to clipboard instead of printing"),
+    as_json: bool = typer.Option(False, "--json"),
 ):
     """Render a paste-ready context pack for continuing this session elsewhere."""
     conn = dbm.connect()
@@ -345,6 +380,9 @@ def handoff_cmd(
 
     if copy:
         subprocess.run(["pbcopy"], input=doc.encode(), check=True)
+    if as_json:
+        print_json({"session": s["id"], "pack": doc, "copied": copy})
+    elif copy:
         console.print(f"✓ copied {len(doc):,} chars — paste it into your other agent")
     else:
         console.print(doc, markup=False, highlight=False)
