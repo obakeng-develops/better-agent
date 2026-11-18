@@ -485,15 +485,19 @@ SWITCH_FOOTER = (
 
 
 def sessions_in(conn, directory: str, exclude_source: str, limit: int = 9) -> list:
-    """Most recent sessions started in this directory by another tool, newest first."""
+    """Most recent sessions started in this directory or below it by another tool, newest first."""
     found = []
     for row in conn.execute(
-        """SELECT * FROM sessions WHERE lower(project) = lower(?) AND source != ?
+        """SELECT * FROM sessions
+           WHERE (lower(project) = lower(?) OR lower(project) LIKE lower(?) || '/%')
+             AND source != ?
            ORDER BY updated_at DESC""",
-        (directory, exclude_source),
+        (directory, directory.rstrip("/"), exclude_source),
     ):
+        # lower()/LIKE is only a prefilter; samefile handles case and wildcard false matches
+        project = Path(row["project"])
         try:
-            if os.path.samefile(row["project"], directory):  # lower() is only a prefilter
+            if any(os.path.samefile(p, directory) for p in (project, *project.parents)):
                 found.append(row)
         except OSError:
             continue
@@ -512,9 +516,11 @@ AGENT_NAMES = {"claude-code": "Claude Code", "opencode": "OpenCode"}
 
 
 def pick_session(candidates: list):
-    err.print(f"[bold]Sessions in {escape(os.getcwd())}[/bold]\n")
+    err.print(f"[bold]Sessions in {escape(os.getcwd())} and below[/bold]\n")
     for i, r in enumerate(candidates, 1):
-        err.print(f"  {i}  [cyan]{r['id']}[/cyan]  {r['source']}  [dim]{rel_time(r['updated_at'])} · "
+        where = os.path.relpath(r["project"])
+        where = "" if where == "." else f"  [magenta]{escape(where)}/[/magenta]"
+        err.print(f"  {i}  [cyan]{r['id']}[/cyan]  {r['source']}{where}  [dim]{rel_time(r['updated_at'])} · "
                   f"{r['message_count']} msgs[/dim]  {escape((r['title'] or '')[:60])}")
     err.print()
     while True:
@@ -585,7 +591,7 @@ def switch_cmd(
     else:
         candidates = sessions_in(conn, os.getcwd(), exclude_source=provider)
         if not candidates:
-            err.print(f"[red]no session in {escape(os.getcwd())} from another agent — "
+            err.print(f"[red]no session in or under {escape(os.getcwd())} from another agent — "
                       "pass --from SESSION[/red]")
             raise typer.Exit(1)
         s = pick_session(candidates) if interactive and len(candidates) > 1 else candidates[0]

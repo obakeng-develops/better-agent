@@ -7,7 +7,7 @@ flowchart LR
   S[bta switch --to PROVIDER] --> I[run_import: incremental, ~0.7s]
   I --> P{--from?}
   P -- yes --> R[resolve_or_exit]
-  P -- no --> L[sessions_in cwd, source != AGENT]
+  P -- no --> L[sessions_in cwd and below, source != AGENT]
   L --> PK{interactive and >1?}
   PK -- yes --> PICK[pick_session]
   PK -- no --> LATEST[newest]
@@ -32,7 +32,7 @@ The preview shows the session header, the last 10 requests with an `activity_lin
 
 ## Session choice
 
-Without `--from`, the candidates are up to 9 recent sessions whose `project` is the current directory and whose source isn't the target, newest first. `bta switch --to opencode` never offers an OpenCode session. Paths are prefiltered with `lower()` and confirmed with `os.path.samefile`, because macOS paths are case-insensitive (`~/Desktop` and `~/desktop` are the same folder).
+Without `--from`, the candidates are up to 9 recent sessions whose `project` is the current directory or a directory under it, and whose source isn't the target, newest first. From `~/Desktop/projects` you get sessions from every repo inside it; parents and siblings stay out. The picker shows the project path relative to the current directory when it isn't `.`. `bta switch --to opencode` never offers an OpenCode session. Paths are prefiltered in SQL with `lower()` and `LIKE dir || '/%'`, then confirmed by checking the project and each of its parents with `os.path.samefile`. That handles macOS's case-insensitive paths (`~/Desktop` and `~/desktop` are the same folder) and rejects `LIKE` wildcard matches from `_` or `%` in a path.
 
 ## Launch commands
 

@@ -251,3 +251,25 @@ def test_switch_picker_preview_and_confirm(tmp_path, monkeypatch):
     result = runner.invoke(app, ["switch", "--to", "opencode"], input="2\ny\n")
     assert result.exit_code == 0, result.output
     assert f"Session: {ids['older_claude']} " in calls["argv"][2]
+
+
+def test_switch_offers_sessions_from_subdirectories_not_siblings(tmp_path, monkeypatch):
+    from better_agent import cli
+    from better_agent import db as dbm
+    from better_agent.models import SourceSession
+
+    switch_setup(tmp_path, monkeypatch)
+    (tmp_path / "repo").mkdir()
+    sibling = tmp_path.parent / (tmp_path.name + "x")  # shares the prefix, isn't below
+    sibling.mkdir()
+    conn = dbm.connect(tmp_path / "bta.db")
+    for sid, project in (("in-repo", tmp_path / "repo"), ("sibling", sibling)):
+        dbm.upsert_session(conn, SourceSession(
+            source="claude-code", source_id=sid, project=str(project), branch=None, title=sid,
+            model=None, created_at=1, updated_at=5000,
+        ))
+    conn.commit()
+
+    titles = [r["title"] for r in cli.sessions_in(conn, str(tmp_path), "opencode")]
+    assert titles == ["in-repo", "newest-claude", "older"]
+    assert [r["title"] for r in cli.sessions_in(conn, str(tmp_path / "repo"), "opencode")] == ["in-repo"]
