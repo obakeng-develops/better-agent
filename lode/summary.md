@@ -7,7 +7,7 @@ flowchart LR
   CC[~/.claude/projects/*/*.jsonl] -->|sources/claude.py| DB[(bta.db)]
   OC[(opencode.db, read-only)] -->|sources/opencode.py| DB
   DB --> CLI[bta list / search / show / link]
-  DB -->|handoff.py| PACK[handoff pack: stdout, clipboard, or lode/handoffs/]
+  DB -->|handoff.py| PACK[handoff pack: stdout or clipboard]
 ```
 
 - How data is stored: [index/summary.md](index/summary.md)

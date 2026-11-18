@@ -28,13 +28,12 @@ The whole pack is truncated to `--max-chars` (default 8000) and ends with a mark
 
 ```mermaid
 flowchart LR
-  H[bta handoff ID] --> D{flags}
-  D -- none --> O[stdout]
-  D -- --copy --> C[pbcopy, macOS only]
-  D -- --to-lode --> L["<project>/lode/handoffs/<date>-<slug>-<id>.md"]
+  H[bta handoff ID] --> D{--copy?}
+  D -- no --> O[stdout]
+  D -- yes --> C[pbcopy, macOS only]
 ```
 
-`--to-lode` needs the session to have a project path. It adds an HTML comment marking the file as temporary ("absorb into durable lode docs, then delete"). The Lode convention puts handovers in a git-ignored `lode/tmp/` instead (see [../plans/backlog.md](../plans/backlog.md)).
+There's deliberately no option to write the pack to a file. A person pastes it with `--copy`, and an agent runs `bta handoff ID` and reads the output. Lode handovers are written by the agent, into `lode/tmp/`, from its own context, so `bta` doesn't write into a project's lode.
 
 `bta show` prints the header and the numbered intent spine, or the full transcript with `--full`.
 
