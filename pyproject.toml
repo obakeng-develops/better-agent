@@ -1,6 +1,6 @@
 [project]
 name = "better-agent"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local-first, searchable, linkable history for coding-agent sessions"
 readme = "README.md"
 requires-python = ">=3.11"
