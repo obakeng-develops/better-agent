@@ -10,6 +10,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.progress import Progress
 from rich.table import Table
 
 from . import db as dbm
@@ -118,10 +119,15 @@ def import_cmd(
     conn = dbm.connect()
 
     stats = []
-    if source in (None, "claude-code"):
-        stats.append(claude.do_import(conn, force=force))
-    if source in (None, "opencode"):
-        stats.append(opencode.do_import(conn, force=force))
+    with Progress(console=err, transient=True, disable=not err.is_terminal) as bar:
+        for name, module in (("claude-code", claude), ("opencode", opencode)):
+            if source not in (None, name):
+                continue
+            task = bar.add_task(name, total=None)
+            stats.append(module.do_import(
+                conn, force=force,
+                progress=lambda done, total, task=task: bar.update(task, completed=done, total=total),
+            ))
 
     if sum(s["messages"] for s in stats):
         with err.status("rebuilding search index…"):

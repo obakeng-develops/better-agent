@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -149,9 +150,15 @@ def parse_file(path: Path) -> tuple[SourceSession, list[SourceMessage]]:
     return session, messages
 
 
-def do_import(conn: sqlite3.Connection, force: bool = False) -> dict:
+def do_import(
+    conn: sqlite3.Connection,
+    force: bool = False,
+    progress: Callable[[int, int], None] = lambda done, total: None,
+) -> dict:
     sessions = msgs = skipped = 0
-    for path in discover():
+    paths = discover()
+    for i, path in enumerate(paths):
+        progress(i, len(paths))
         st = path.stat()
         key = f"claude:{path}"
         row = conn.execute(
@@ -169,5 +176,6 @@ def do_import(conn: sqlite3.Connection, force: bool = False) -> dict:
         )
         sessions += 1
         msgs += len(messages)
+    progress(len(paths), len(paths))
     conn.commit()
     return {"source": "claude-code", "sessions": sessions, "messages": msgs, "skipped": skipped}

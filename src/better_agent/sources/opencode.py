@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from .. import db as dbm
@@ -111,7 +112,11 @@ def _load_messages(src: sqlite3.Connection, session_source_id: str) -> list[Sour
     return messages
 
 
-def do_import(conn: sqlite3.Connection, force: bool = False) -> dict:
+def do_import(
+    conn: sqlite3.Connection,
+    force: bool = False,
+    progress: Callable[[int, int], None] = lambda done, total: None,
+) -> dict:
     if not DB_PATH.exists():
         return {"source": "opencode", "sessions": 0, "messages": 0, "skipped": 0}
 
@@ -129,12 +134,14 @@ def do_import(conn: sqlite3.Connection, force: bool = False) -> dict:
     try:
         sessions = msgs = skipped = 0
         pending_links: list[tuple[str, str, str]] = []  # (from source_id, to source_id, type)
-        for r in src.execute(
+        rows = src.execute(
             """SELECT id, project_id, directory, title, parent_id, fork_session_id,
                       model, agent, slug, time_created, time_updated,
                       tokens_input, tokens_output, cost
                FROM session_v2"""
-        ):
+        ).fetchall()
+        for i, r in enumerate(rows):
+            progress(i, len(rows))
             sid = dbm.session_id("opencode", r["id"])
             existing = conn.execute(
                 "SELECT updated_at FROM sessions WHERE id=?", (sid,)
@@ -164,6 +171,7 @@ def do_import(conn: sqlite3.Connection, force: bool = False) -> dict:
                 pending_links.append((r["id"], r["fork_session_id"], "fork"))
             sessions += 1
             msgs += len(messages)
+        progress(len(rows), len(rows))
 
         linked = 0
         for from_sid, to_sid, ltype in pending_links:

@@ -9,6 +9,7 @@ sequenceDiagram
   participant DB as db.py
   CLI->>S: do_import(conn, force)
   S->>S: skip unchanged (imports table / updated_at)
+  S-->>CLI: progress(done, total) per file or session
   S->>DB: upsert_session, replace_messages
   S-->>CLI: {source, sessions, messages, skipped, links?}
   CLI->>DB: rebuild_fts (if any messages)

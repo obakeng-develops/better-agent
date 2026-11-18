@@ -46,3 +46,19 @@ def test_title_falls_back_to_first_user_text(tmp_path):
     session, messages = claude.parse_file(f)
     assert session.title.startswith("what is the airspeed")
     assert len(messages) == 1
+
+
+def test_import_reports_progress_to_completion(tmp_path, monkeypatch):
+    import shutil
+
+    from better_agent import db as dbm
+
+    proj = tmp_path / "projects" / "-p"
+    proj.mkdir(parents=True)
+    for name in ("a.jsonl", "b.jsonl"):
+        shutil.copy(FIXTURE, proj / name)
+    monkeypatch.setattr(claude, "CLAUDE_DIR", tmp_path / "projects")
+
+    calls = []
+    claude.do_import(dbm.connect(tmp_path / "bta.db"), progress=lambda d, t: calls.append((d, t)))
+    assert calls == [(0, 2), (1, 2), (2, 2)]
