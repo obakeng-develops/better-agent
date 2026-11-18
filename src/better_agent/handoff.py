@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 import sqlite3
 import time
 
@@ -50,6 +51,40 @@ def files_touched(messages: list[sqlite3.Row]) -> list[str]:
             if fp and fp not in seen:
                 seen.append(fp)
     return seen
+
+
+def turns(messages: list[sqlite3.Row]) -> list[tuple[sqlite3.Row, Counter, list[str]]]:
+    """Each intent-spine message with what the agent did before the next one.
+
+    Returns (user message, tool-call counts by name, shell commands run). Subagent
+    (sidechain) activity is left out.
+    """
+    out: list[tuple[sqlite3.Row, Counter, list[str]]] = []
+    for m in messages:
+        if m["is_sidechain"]:
+            continue
+        if m["role"] == "user" and _text_of(m):
+            out.append((m, Counter(), []))
+        elif m["role"] == "assistant" and out:
+            for p in _parts(m):
+                if p.get("type") != "tool_use":
+                    continue
+                out[-1][1][p.get("name") or "?"] += 1
+                cmd = (p.get("input") or {}).get("command")
+                if isinstance(cmd, str) and cmd.strip():
+                    out[-1][2].append(cmd.strip())
+    return out
+
+
+def activity_line(tools: Counter, commands: list[str], examples: int = 2) -> str:
+    """'Bash ×9 · Write ×2 · e.g. `uv run pytest`' — empty when the agent used no tools."""
+    if not tools:
+        return ""
+    line = " · ".join(f"{name} ×{n}" for name, n in tools.most_common())
+    shown = [_clip(c.splitlines()[0], 80) for c in commands[:examples]]
+    if shown:
+        line += " · e.g. " + ", ".join(f"`{c}`" for c in shown)
+    return line
 
 
 def _last_assistant_text(messages: list[sqlite3.Row]) -> str | None:
@@ -95,8 +130,9 @@ def render_handoff(
     linked: list[tuple[sqlite3.Row, str, str | None]],
     full: bool = False,
     max_chars: int = 8000,
+    activity: bool = True,
 ) -> str:
-    spine = intent_spine(messages)
+    spine = turns(messages)
     files = files_touched(messages)
     last_text = _last_assistant_text(messages)
 
@@ -118,10 +154,13 @@ def render_handoff(
     lines.append("")
 
     if spine:
-        lines += ["## Goal", "", _clip(_text_of(spine[0]), 600), ""]
+        lines += ["## Goal", "", _clip(_text_of(spine[0][0]), 600), ""]
         lines += ["## What was asked, in order", ""]
-        for i, m in enumerate(spine, 1):
+        for i, (m, tools, commands) in enumerate(spine, 1):
             lines.append(f"{i}. {_clip(' '.join(_text_of(m).split()), 200)}")
+            did = activity_line(tools, commands) if activity else ""
+            if did:
+                lines.append(f"   → {did}")
         lines.append("")
 
     if files:
@@ -139,6 +178,8 @@ def render_handoff(
         lines += ["## Full transcript", render_transcript(messages), ""]
 
     doc = "\n".join(lines).strip() + "\n"
+    if len(doc) > max_chars and activity:  # drop activity before cutting the tail
+        return render_handoff(session, messages, linked, full, max_chars, activity=False)
     if len(doc) > max_chars:
         doc = doc[:max_chars].rstrip() + f"\n\n…[truncated to {max_chars} chars — raise --max-chars or use --full]\n"
     return doc

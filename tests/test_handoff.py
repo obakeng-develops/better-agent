@@ -76,3 +76,26 @@ def test_link_handoffs_links_pasted_packs_but_not_tool_output(tmp_path):
     assert link_handoffs(conn) == 0  # idempotent
     rows = conn.execute("SELECT a, b, type FROM links").fetchall()
     assert [tuple(r) for r in rows] == [(srow["id"], pasted, "handoff")]
+
+
+def test_turns_group_tool_calls_under_each_request(tmp_path):
+    from collections import Counter
+
+    from better_agent.handoff import activity_line, turns
+
+    _, _, mrows = load_fixture_session(tmp_path)
+    [(msg, tools, commands)] = turns(mrows)  # tool_result and sidechain rows don't start turns
+    assert "flux capacitor" in msg["text"]
+    assert tools == Counter({"Edit": 1}) and commands == []
+    assert activity_line(tools, commands) == "Edit ×1"
+    assert activity_line(Counter({"Bash": 2}), ["uv run pytest -q\nsecond line", "git status"]) == (
+        "Bash ×2 · e.g. `uv run pytest -q`, `git status`"
+    )
+
+
+def test_pack_drops_activity_before_truncating(tmp_path):
+    _, srow, mrows = load_fixture_session(tmp_path)
+    assert "→ Edit ×1" in render_handoff(srow, mrows, [])
+    full = render_handoff(srow, mrows, [])
+    tight = render_handoff(srow, mrows, [], max_chars=len(full) - 5)
+    assert "→ Edit ×1" not in tight and "truncated" not in tight
