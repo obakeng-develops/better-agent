@@ -146,6 +146,10 @@ def render_handoff(
         f"Session: {session['id']} · {_fmt_time(session['created_at'])} → "
         f"{_fmt_time(session['updated_at'])} · {session['message_count']} messages"
     )
+    lines.append(
+        f"Full history: `bta show {session['id']} --full` (readable transcript) or "
+        f"`bta show {session['id']} --json` (every tool call and result)"
+    )
     if linked:
         rel = ", ".join(
             f"{other['id']} ({ltype}{' — ' + note if note else ''})"

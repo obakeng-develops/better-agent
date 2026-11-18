@@ -13,10 +13,13 @@
 
 ## Pack layout (`render_handoff`)
 
+The pack stays small, about 2–4k characters. The receiving agent pulls detail on demand through the `Full history:` line. `--full` shows tool names and targets, and `--json` has every part, including tool results.
+
 ```markdown
 # Context handoff: <title>
 Source: <source> (<model>) · Project: <path>
 Session: bta_… · start → end · N messages
+Full history: `bta show ID --full` … or `--json` …   in the header, so truncation never cuts it
 Related sessions: bta_… (type — note)
 ## Goal                      first spine message, ≤600 chars
 ## What was asked, in order  each spine message, ≤200 chars

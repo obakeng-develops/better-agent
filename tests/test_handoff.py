@@ -99,3 +99,9 @@ def test_pack_drops_activity_before_truncating(tmp_path):
     full = render_handoff(srow, mrows, [])
     tight = render_handoff(srow, mrows, [], max_chars=len(full) - 5)
     assert "→ Edit ×1" not in tight and "truncated" not in tight
+
+
+def test_pack_points_at_bta_for_the_full_history(tmp_path):
+    _, srow, mrows = load_fixture_session(tmp_path)
+    pack = render_handoff(srow, mrows, [], max_chars=300)  # survives truncation
+    assert f"bta show {srow['id']} --json" in pack
