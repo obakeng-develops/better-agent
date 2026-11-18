@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .. import db as dbm
+from . import tool_target
 from ..models import SourceMessage, SourceSession
 
 CLAUDE_DIR = Path("~/.claude/projects").expanduser()
@@ -36,12 +37,6 @@ def _ts_ms(ts: str | None) -> int | None:
         return int(datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() * 1000)
     except ValueError:
         return None
-
-
-def _tool_target(inp: dict) -> str:
-    return str(
-        inp.get("file_path") or inp.get("command") or inp.get("pattern") or inp.get("path") or ""
-    )[:200]
 
 
 def _tool_result_text(content) -> str:
@@ -73,7 +68,7 @@ def _normalize_content(content) -> tuple[list[dict], str]:
         elif btype == "tool_use":
             inp = block.get("input") or {}
             parts.append({"type": "tool_use", "name": block.get("name"), "input": inp})
-            fts.append(f"[tool: {block.get('name')}] {_tool_target(inp)}")
+            fts.append(f"[tool: {block.get('name')}] {tool_target(inp)}")
         elif btype == "tool_result":
             text = _tool_result_text(block.get("content"))
             parts.append({"type": "tool_result", "text": text[:TOOL_RESULT_MAX]})
