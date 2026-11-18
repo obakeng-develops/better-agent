@@ -89,6 +89,16 @@ A session's id is a hash of the agent and the agent's own session id. Importing 
 
 Nothing in the index is redacted. Packs, transcripts and search results show messages exactly as they were written, so read a pack before you send it to anyone.
 
+## Adding another agent
+
+`bta` reads Claude Code and OpenCode today. To add another agent, you write an adapter for it: one module in `src/better_agent/sources/` that reads the agent's session files and hands them to `bta` in its shared format. Search, `show`, links and handoff packs then work for that agent with no other changes.
+
+An adapter does the following: (1) finds the agent's sessions, (2) turns each one and its messages into a `SourceSession` and `SourceMessage` list, (3) saves them with `upsert_session` and `replace_messages`. It only ever reads the agent's files and never writes to them.
+
+Then register it in `src/better_agent/cli.py`. Add it to the import loop in `run_import` and its name to `norm_source`. For `switch` and `resume` to work with it, also add the command that starts the agent to `agent_argv` and `resume_argv`, and its display name to `AGENT_NAMES`.
+
+There's no plugin system, so adapters live in this repo and go in as a PR with a test. The full contract is in [`lode/practices.md`](lode/practices.md#adding-a-source), and `sources/claude.py` is the simpler adapter to copy from.
+
 ## Contributing
 
 ```sh
