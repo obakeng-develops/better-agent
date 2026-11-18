@@ -49,3 +49,30 @@ def test_render_handoff_full_and_truncation(tmp_path):
     assert doc.endswith("raise --max-chars or use --full]\n")
     assert len(doc) <= 500
 
+
+
+def test_link_handoffs_links_pasted_packs_but_not_tool_output(tmp_path):
+    from better_agent.handoff import link_handoffs
+    from better_agent.models import SourceMessage, SourceSession
+
+    conn, srow, mrows = load_fixture_session(tmp_path)
+    pack = render_handoff(srow, mrows, [])
+
+    def add_session(source_id, part):
+        sid = dbm.upsert_session(conn, SourceSession(
+            source="opencode", source_id=source_id, project="/p", branch=None, title=source_id,
+            model=None, created_at=5000, updated_at=6000,
+        ))
+        dbm.replace_messages(conn, sid, "opencode", [SourceMessage(
+            id=f"{source_id}-m1", role="user", parent_id=None, is_sidechain=False, model=None,
+            created_at=5000, parts=[part], text=part["text"],
+        )])
+        return sid
+
+    pasted = add_session("pasted", {"type": "text", "text": "carry on from this:\n\n" + pack})
+    add_session("tool-output", {"type": "tool_result", "text": pack})
+
+    assert link_handoffs(conn) == 1
+    assert link_handoffs(conn) == 0  # idempotent
+    rows = conn.execute("SELECT a, b, type FROM links").fetchall()
+    assert [tuple(r) for r in rows] == [(srow["id"], pasted, "handoff")]

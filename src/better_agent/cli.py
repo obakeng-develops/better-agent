@@ -15,7 +15,7 @@ from rich.progress import Progress
 from rich.table import Table
 
 from . import db as dbm
-from .handoff import intent_spine, render_handoff, render_transcript
+from .handoff import intent_spine, link_handoffs, render_handoff, render_transcript
 from .sources import claude, opencode
 
 def examples(*lines: str) -> str:
@@ -139,7 +139,9 @@ def import_cmd(
                 progress=lambda done, total, task=task: bar.update(task, completed=done, total=total),
             ))
 
+    handoff_links = 0
     if sum(s["messages"] for s in stats):
+        handoff_links = link_handoffs(conn)
         with err.status("rebuilding search index…"):
             dbm.rebuild_fts(conn)
             conn.commit()
@@ -161,6 +163,8 @@ def import_cmd(
                 f"[bold]{s['source']}[/bold]: {s['sessions']} sessions imported "
                 f"({s['messages']} messages{extra}), {s['skipped']} unchanged"
             )
+    if handoff_links:
+        console.print(f"[bold]handoffs[/bold]: {handoff_links} new link(s)")
 
 
 @app.command("list", epilog=examples(

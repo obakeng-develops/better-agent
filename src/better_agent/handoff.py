@@ -8,10 +8,15 @@ transfer intent between agents better than any summary.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 
+from . import db as dbm
+
 WRITE_TOOLS = {"edit", "write", "multiedit", "notebookedit"}
+PACK_HEADER = "# Context handoff: "
+SESSION_LINE = re.compile(r"^Session: (bta_[0-9a-f]{8}) ", re.M)
 
 
 def _parts(message: sqlite3.Row) -> list[dict]:
@@ -95,7 +100,7 @@ def render_handoff(
     files = files_touched(messages)
     last_text = _last_assistant_text(messages)
 
-    lines: list[str] = [f"# Context handoff: {session['title']}", ""]
+    lines: list[str] = [f"{PACK_HEADER}{session['title']}", ""]
     src = f"{session['source']}"
     if session["model"]:
         src += f" ({session['model']})"
@@ -137,3 +142,34 @@ def render_handoff(
     if len(doc) > max_chars:
         doc = doc[:max_chars].rstrip() + f"\n\n…[truncated to {max_chars} chars — raise --max-chars or use --full]\n"
     return doc
+
+
+def pack_origin(message: sqlite3.Row) -> str | None:
+    """The session id of a handoff pack pasted into this message, if it has one.
+
+    Only typed text counts. A tool result that printed a pack doesn't, so an agent
+    running `bta handoff` never links its own session.
+    """
+    for p in _parts(message):
+        text = p.get("text", "") if p.get("type") == "text" else ""
+        if PACK_HEADER in text:
+            m = SESSION_LINE.search(text, text.index(PACK_HEADER))
+            if m:
+                return m.group(1)
+    return None
+
+
+def link_handoffs(conn: sqlite3.Connection) -> int:
+    """Link each session that starts from a pasted pack to the session the pack came from."""
+    linked = 0
+    for m in conn.execute(
+        """SELECT m.session_id, m.parts FROM messages m
+           WHERE m.role = 'user' AND m.is_sidechain = 0 AND m.text LIKE ?""",
+        (f"%{PACK_HEADER.strip()}%",),
+    ):
+        origin = pack_origin(m)
+        if not origin or origin == m["session_id"]:
+            continue
+        if conn.execute("SELECT 1 FROM sessions WHERE id=?", (origin,)).fetchone():
+            linked += dbm.insert_link(conn, origin, m["session_id"], "handoff")
+    return linked

@@ -10,6 +10,7 @@
 - **files touched**: file paths from write-type tool calls (`edit`, `write`, `multiedit`, `notebookedit`).
 - **handoff pack**: deterministic markdown made from the header, goal, intent spine, files touched, and the last assistant text.
 - **link**: an undirected relation between two sessions, with a type (`related`, `continuation`, `handoff`, `fork`, or `subagent`) and an optional note.
-- **auto-link**: a `subagent` or `fork` link that the OpenCode import creates from `parent_id` and `fork_session_id`.
+- **auto-link**: a link that import creates without being asked. That's a `subagent` or `fork` link from OpenCode's `parent_id` and `fork_session_id`, or a `handoff` link from a pasted pack.
+- **pack origin**: the `bta_` id on a pack's `Session:` line. It tells import which session a pasted pack came from.
 - **dual-era row**: an OpenCode `session_message` row whose parts exist only in the legacy `part` table.
 - **BTA_HOME**: an env var that overrides the data folder (default `~/.better-agent`).
