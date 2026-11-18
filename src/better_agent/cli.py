@@ -5,6 +5,7 @@ import re
 import sqlite3
 from importlib.metadata import version
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -367,19 +368,29 @@ def links_cmd(
         )
 
 
-@app.command("unlink", epilog=examples("bta unlink a1b2 9f8e"))
+@app.command("unlink", epilog=examples("bta unlink a1b2 9f8e", "bta unlink a1b2 9f8e --force"))
 def unlink_cmd(
     a: str,
     b: str,
+    force: bool = typer.Option(False, "--force", "-f", help="Remove without asking."),
     as_json: bool = typer.Option(False, "--json"),
 ):
-    """Remove all links between two sessions."""
+    """Remove all links between two sessions. Asks first unless you pass --force."""
     conn = dbm.connect()
     sa, sb = resolve_or_exit(conn, a), resolve_or_exit(conn, b)
-    cur = conn.execute(
-        "DELETE FROM links WHERE (a=? AND b=?) OR (a=? AND b=?)",
-        (sa["id"], sb["id"], sb["id"], sa["id"]),
-    )
+    pair = (sa["id"], sb["id"], sb["id"], sa["id"])
+    types = [r["type"] for r in conn.execute(
+        "SELECT type FROM links WHERE (a=? AND b=?) OR (a=? AND b=?)", pair
+    )]
+    if types and not force:
+        if not sys.stdin.isatty():
+            err.print("[red]unlink needs confirmation — pass --force to remove without asking[/red]")
+            raise typer.Exit(1)
+        typer.confirm(
+            f"Remove {len(types)} link(s) between {sa['id']} and {sb['id']} ({', '.join(types)})?",
+            abort=True, err=True,
+        )
+    cur = conn.execute("DELETE FROM links WHERE (a=? AND b=?) OR (a=? AND b=?)", pair)
     conn.commit()
     if as_json:
         print_json({"a": sa["id"], "b": sb["id"], "removed": cur.rowcount})

@@ -65,7 +65,7 @@ def test_json_on_link_links_unlink_handoff(tmp_path, monkeypatch):
     assert run_json(["link", a, b])["created"] is False
     [link] = run_json(["links", a])
     assert link["session"]["id"] == b and link["type"] == "related"
-    assert run_json(["unlink", a, b]) == {"a": a, "b": b, "removed": 1}
+    assert run_json(["unlink", a, b, "--force"]) == {"a": a, "b": b, "removed": 1}
 
     pack = run_json(["handoff", a])
     assert pack["session"] == a and pack["copied"] is False
@@ -91,7 +91,7 @@ def test_search_retries_fts_syntax_errors_as_quoted_terms(tmp_path, monkeypatch)
 
 def test_status_messages_go_to_stderr(tmp_path, monkeypatch):
     a, b = seed_two_sessions(tmp_path, monkeypatch)
-    for args in (["link", a, b], ["unlink", a, b], ["links", a], ["search", "zzz"]):
+    for args in (["link", a, b], ["unlink", a, b, "-f"], ["links", a], ["search", "zzz"]):
         result = runner.invoke(app, args)
         assert result.exit_code == 0, args
         assert result.stdout == "" and result.stderr, args
@@ -102,3 +102,16 @@ def test_every_command_has_help_examples():
     for args in ([], *([c] for c in commands)):
         result = runner.invoke(app, [*args, "--help"])
         assert "Examples" in result.output and "bta " in result.output, args
+
+
+def test_unlink_refuses_without_confirmation_when_not_interactive(tmp_path, monkeypatch):
+    a, b = seed_two_sessions(tmp_path, monkeypatch)
+    runner.invoke(app, ["link", a, b])
+    result = runner.invoke(app, ["unlink", a, b])
+    assert result.exit_code == 1 and "--force" in result.stderr
+    assert len(run_json(["links", a])) == 1  # nothing removed
+
+
+def test_unlink_with_no_links_needs_no_confirmation(tmp_path, monkeypatch):
+    a, b = seed_two_sessions(tmp_path, monkeypatch)
+    assert run_json(["unlink", a, b])["removed"] == 0
