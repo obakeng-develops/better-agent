@@ -10,4 +10,4 @@ See [../practices.md](../practices.md#cli-design).
 
 ## Other
 
-- **`--copy` works on macOS only** (`pbcopy`).
+- **`--copy` works on macOS only** (`pbcopy`). `bta switch` doesn't need the clipboard.

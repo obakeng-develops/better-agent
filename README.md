@@ -1,6 +1,7 @@
 # better-agent
 
-Local-first, searchable, linkable history for coding-agent sessions (Claude Code, OpenCode).
+Local-first, searchable, linkable history for coding-agent sessions (Claude Code, OpenCode),
+and one command to carry a session from one agent to the other.
 
 Agent sessions are short-lived and scattered across tools. `bta` imports them into one
 local SQLite database, makes them full-text searchable, lets you link related sessions, and
@@ -14,6 +15,19 @@ uv tool install .   # puts `bta` on your PATH
 ```
 
 To uninstall, run `uv tool uninstall better-agent`. To delete the index too, run `rm -r ~/.better-agent`.
+
+## Switch agents
+
+```sh
+bta switch opencode            # continue this directory's latest Claude Code session in OpenCode
+bta switch claude              # and back again
+bta switch claude --from a1b2 --dry-run   # show the pack and command without running them
+```
+
+`switch` imports, renders the session's handoff pack, and starts the other agent in the
+session's project directory with the pack as its first message. Claude Code sends it right
+away. OpenCode 2.0 puts it in the input box, so you press Enter. The next `bta import`
+links the new session to the old one as a `handoff`.
 
 ## Usage
 
@@ -36,7 +50,7 @@ Run `bta -h` or `bta <command> -h` for every flag and example, and `bta --versio
 
 ## Scripting
 
-- Every command takes `--json`. Its output shape stays stable between versions.
+- Every command except `switch` takes `--json`, and its shape stays stable between versions. `switch` hands your terminal to another program, so use `switch --dry-run` to script it.
 - Results go to stdout. Errors, confirmations, and notes such as `no matches` go to stderr.
 - `bta` exits 0 on success, 1 on a failure such as an unknown session id, and 2 on a usage error.
 - Without a terminal, `unlink` exits 1 unless you pass `--force`.
@@ -49,7 +63,8 @@ Run `bta -h` or `bta <command> -h` for every flag and example, and `bta --versio
   a session instead of duplicating it.
 - **Deterministic handoffs.** There are no LLM calls. The context pack is built from the
   intent spine, the files touched, and the last thing the agent said.
-- **Auto-links.** Import links OpenCode subagent (`parent_id`) and fork sessions automatically.
+- **Auto-links.** Import links OpenCode subagent (`parent_id`) and fork sessions, and any
+  session that starts from a pasted handoff pack, automatically.
 
 ## Sources
 

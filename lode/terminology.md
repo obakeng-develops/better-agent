@@ -12,5 +12,6 @@
 - **link**: an undirected relation between two sessions, with a type (`related`, `continuation`, `handoff`, `fork`, or `subagent`) and an optional note.
 - **auto-link**: a link that import creates without being asked. That's a `subagent` or `fork` link from OpenCode's `parent_id` and `fork_session_id`, or a `handoff` link from a pasted pack.
 - **pack origin**: the `bta_` id on a pack's `Session:` line. It tells import which session a pasted pack came from.
+- **switch**: continuing a session in the other agent with `bta switch`. The new session starts from the pack and links back as a `handoff`.
 - **dual-era row**: an OpenCode `session_message` row whose parts exist only in the legacy `part` table.
 - **BTA_HOME**: an env var that overrides the data folder (default `~/.better-agent`).

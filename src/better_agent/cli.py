@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shlex
+import shutil
 import sqlite3
 from importlib.metadata import version
 import subprocess
@@ -121,18 +124,8 @@ def linked_sessions(conn, sid: str) -> list[tuple[object, str, str | None]]:
     return [(r, r["type"], r["note"]) for r in rows]
 
 
-# ---------- commands ----------
-
-@app.command("import", epilog=examples("bta import", "bta import --source opencode --force"))
-def import_cmd(
-    source: str = typer.Option(None, "--source", "-s", callback=norm_source,
-                               help="claude | opencode (default: both)"),
-    force: bool = typer.Option(False, "--force", help="re-import everything, ignore cached state"),
-    as_json: bool = typer.Option(False, "--json"),
-):
-    """Scan known sources and import new/updated sessions."""
-    conn = dbm.connect()
-
+def run_import(conn, source: str | None = None, force: bool = False) -> tuple[list[dict], int]:
+    """Import every source (or one), then link pasted packs and rebuild search."""
     stats = []
     with Progress(console=err, transient=True, disable=not err.is_terminal) as bar:
         for name, module in (("claude-code", claude), ("opencode", opencode)):
@@ -150,6 +143,21 @@ def import_cmd(
         with err.status("rebuilding search index…"):
             dbm.rebuild_fts(conn)
             conn.commit()
+    return stats, handoff_links
+
+
+# ---------- commands ----------
+
+@app.command("import", epilog=examples("bta import", "bta import --source opencode --force"))
+def import_cmd(
+    source: str = typer.Option(None, "--source", "-s", callback=norm_source,
+                               help="claude | opencode (default: both)"),
+    force: bool = typer.Option(False, "--force", help="re-import everything, ignore cached state"),
+    as_json: bool = typer.Option(False, "--json"),
+):
+    """Scan known sources and import new/updated sessions."""
+    conn = dbm.connect()
+    stats, handoff_links = run_import(conn, source, force)
 
     if as_json:
         print_json([
@@ -434,3 +442,80 @@ def handoff_cmd(
         err.print(f"✓ copied {len(doc):,} chars — paste it into your other agent")
     else:
         print_text(doc)
+
+
+SWITCH_FOOTER = (
+    "\n---\n\nYou're continuing this session in a different agent. Check the working tree, "
+    "then pick up from \"Where things stand\".\n"
+)
+
+
+def latest_session_in(conn, directory: str, exclude_source: str):
+    """Most recent session started in this directory by another tool."""
+    for row in conn.execute(
+        """SELECT * FROM sessions WHERE lower(project) = lower(?) AND source != ?
+           ORDER BY updated_at DESC""",
+        (directory, exclude_source),
+    ):
+        try:
+            if os.path.samefile(row["project"], directory):  # lower() is only a prefilter
+                return row
+        except OSError:
+            continue
+    return None
+
+
+def agent_argv(agent: str, pack: str, project: str) -> list[str]:
+    if agent == "claude-code":
+        return ["claude", pack]
+    return ["opencode", "--prompt", pack, project]
+
+
+@app.command("switch", epilog=examples(
+    "bta switch opencode",
+    "bta switch claude --from a1b2 --dry-run",
+))
+def switch_cmd(
+    agent: str = typer.Argument(..., callback=norm_source, help="claude | opencode"),
+    from_: str = typer.Option(None, "--from", help="Session to continue. Default: the most "
+                              "recent session in this directory from the other agent."),
+    max_chars: int = typer.Option(8000, "--max-chars"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-n",
+                                 help="Print the pack and the command instead of running it."),
+):
+    """Continue a session in another agent: import, render the pack, and start the agent with it."""
+    conn = dbm.connect()
+    run_import(conn)
+    if from_:
+        s = resolve_or_exit(conn, from_)
+    else:
+        s = latest_session_in(conn, os.getcwd(), exclude_source=agent)
+        if s is None:
+            err.print(f"[red]no session in {os.getcwd()} from another agent — "
+                      "pass --from SESSION[/red]")
+            raise typer.Exit(1)
+    project = s["project"]
+    if not project or not os.path.isdir(project):
+        err.print(f"[red]{s['id']} has no project directory on this machine ({project or '?'})[/red]")
+        raise typer.Exit(1)
+
+    messages = conn.execute(
+        "SELECT * FROM messages WHERE session_id=? ORDER BY created_at, id", (s["id"],)
+    ).fetchall()
+    pack = render_handoff(s, messages, linked_sessions(conn, s["id"]), max_chars=max_chars)
+    pack += SWITCH_FOOTER
+    argv = agent_argv(agent, pack, project)
+    shown = shlex.join(a if a != pack else "<pack>" for a in argv)
+
+    if dry_run:
+        print_text(pack)
+        err.print(f"would run in {project}: {shown}", markup=False, highlight=False, soft_wrap=True)
+        return
+    if shutil.which(argv[0]) is None:
+        err.print(f"[red]{argv[0]} isn't on your PATH[/red]")
+        raise typer.Exit(1)
+    hint = " (press Enter there to send the pack)" if agent == "opencode" else ""
+    err.print(f"continuing {s['id']} ({s['source']}) in {argv[0]}{hint}…",
+              markup=False, highlight=False)
+    os.chdir(project)
+    os.execvp(argv[0], argv)

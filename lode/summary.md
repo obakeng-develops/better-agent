@@ -8,8 +8,11 @@ flowchart LR
   OC[(opencode.db, read-only)] -->|sources/opencode.py| DB
   DB --> CLI[bta list / search / show / link]
   DB -->|handoff.py| PACK[handoff pack: stdout or clipboard]
+  PACK -->|bta switch| AG[claude / opencode, started with the pack]
+  AG -.->|next import links it back| DB
 ```
 
 - How data is stored: [index/summary.md](index/summary.md)
 - How each tool is read: [sources/summary.md](sources/summary.md)
 - How handoffs are built: [handoff/summary.md](handoff/summary.md)
+- How switching agents works: [handoff/switch.md](handoff/switch.md)

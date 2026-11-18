@@ -132,3 +132,64 @@ def test_packs_and_transcripts_print_verbatim(tmp_path, monkeypatch):
 
     assert long_line.strip() in runner.invoke(app, ["show", a, "--full"]).stdout
     assert "[bold]not markup[/bold]" in runner.invoke(app, ["handoff", a, "--max-chars", "99999"]).stdout
+
+
+def switch_setup(tmp_path, monkeypatch):
+    from better_agent import db as dbm
+    from better_agent.models import SourceSession
+    from better_agent.sources import claude, opencode
+
+    monkeypatch.setenv("BTA_HOME", str(tmp_path))
+    monkeypatch.setattr(claude, "CLAUDE_DIR", tmp_path / "none")
+    monkeypatch.setattr(opencode, "DB_PATH", tmp_path / "none.db")
+    monkeypatch.chdir(tmp_path)
+    conn = dbm.connect(tmp_path / "bta.db")
+
+    def add(source, source_id, updated, project=str(tmp_path)):
+        return dbm.upsert_session(conn, SourceSession(
+            source=source, source_id=source_id, project=project, branch=None, title=source_id,
+            model=None, created_at=1, updated_at=updated,
+        ))
+
+    ids = {
+        "older_claude": add("claude-code", "older", 1000),
+        "claude": add("claude-code", "newest-claude", 2000),
+        "opencode": add("opencode", "newest-overall", 3000),
+        "elsewhere": add("claude-code", "other-dir", 4000, project="/somewhere/else"),
+    }
+    conn.commit()
+    return ids
+
+
+def test_switch_dry_run_picks_latest_session_here_from_the_other_agent(tmp_path, monkeypatch):
+    ids = switch_setup(tmp_path, monkeypatch)
+    result = runner.invoke(app, ["switch", "opencode", "-n"])
+    assert result.exit_code == 0, result.output
+    assert f"Session: {ids['claude']} " in result.stdout  # not the opencode one, not another dir
+    assert result.stdout.rstrip().endswith('pick up from "Where things stand".')
+    assert f"would run in {tmp_path}: opencode --prompt '<pack>' {tmp_path}" in result.stderr
+
+
+def test_switch_execs_the_agent_in_the_project_directory(tmp_path, monkeypatch):
+    import os
+    import shutil
+
+    ids = switch_setup(tmp_path, monkeypatch)
+    calls = {}
+    monkeypatch.setattr(shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(os, "execvp", lambda file, argv: calls.update(file=file, argv=argv))
+    monkeypatch.chdir("/")
+
+    result = runner.invoke(app, ["switch", "claude", "--from", ids["opencode"]])
+    assert result.exit_code == 0, result.output
+    assert calls["file"] == "claude"
+    assert calls["argv"][1].startswith("# Context handoff: newest-overall")
+    assert os.path.samefile(os.getcwd(), tmp_path)
+
+
+def test_switch_without_a_session_here_says_how_to_pick_one(tmp_path, monkeypatch):
+    switch_setup(tmp_path, monkeypatch)
+    (tmp_path / "empty").mkdir()
+    monkeypatch.chdir(tmp_path / "empty")
+    result = runner.invoke(app, ["switch", "opencode"])
+    assert result.exit_code == 1 and "--from" in result.stderr
