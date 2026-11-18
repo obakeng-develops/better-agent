@@ -58,12 +58,14 @@ def parse_since(s: str) -> int:
     return int((time.time() - int(m.group(1)) * mult) * 1000)
 
 
-def norm_source(s: str) -> str:
+def norm_source(s: str | None) -> str | None:
+    if s is None:
+        return None
     if s in ("claude", "claude-code"):
         return "claude-code"
     if s == "opencode":
         return "opencode"
-    raise typer.BadParameter("source must be 'claude' or 'opencode'")
+    raise typer.BadParameter("must be 'claude' or 'opencode'")
 
 
 def resolve_or_exit(conn, prefix: str):
@@ -98,16 +100,15 @@ def linked_sessions(conn, sid: str) -> list[tuple[object, str, str | None]]:
 
 @app.command("import")
 def import_cmd(
-    source: str = typer.Option(None, "--source", "-s", help="claude | opencode (default: both)"),
+    source: str = typer.Option(None, "--source", "-s", callback=norm_source,
+                               help="claude | opencode (default: both)"),
     force: bool = typer.Option(False, "--force", help="re-import everything, ignore cached state"),
 ):
     """Scan known sources and import new/updated sessions."""
     conn = dbm.connect()
-    if source not in (None, "claude", "opencode"):
-        raise typer.BadParameter("--source must be 'claude' or 'opencode'")
 
     stats = []
-    if source in (None, "claude"):
+    if source in (None, "claude-code"):
         stats.append(claude.do_import(conn, force=force))
     if source in (None, "opencode"):
         stats.append(opencode.do_import(conn, force=force))
@@ -130,7 +131,8 @@ def import_cmd(
 
 @app.command("list")
 def list_cmd(
-    source: str = typer.Option(None, "--source", "-s"),
+    source: str = typer.Option(None, "--source", "-s", callback=norm_source,
+                               help="claude | opencode"),
     project: str = typer.Option(None, "--project", "-p", help="substring of project path"),
     since: str = typer.Option(None, "--since", help="e.g. 24h, 7d, 2w"),
     limit: int = typer.Option(30, "--limit"),
@@ -140,7 +142,7 @@ def list_cmd(
     conn = dbm.connect()
     where, params = [], []
     if source:
-        where.append("s.source = ?"); params.append(norm_source(source))
+        where.append("s.source = ?"); params.append(source)
     if project:
         where.append("s.project LIKE ?"); params.append(f"%{project}%")
     if since:
@@ -173,7 +175,8 @@ def list_cmd(
 def search_cmd(
     query: str,
     role: str = typer.Option(None, "--role", "-r", help="user | assistant"),
-    source: str = typer.Option(None, "--source", "-s"),
+    source: str = typer.Option(None, "--source", "-s", callback=norm_source,
+                               help="claude | opencode"),
     project: str = typer.Option(None, "--project", "-p"),
     limit: int = typer.Option(10, "--limit"),
     as_json: bool = typer.Option(False, "--json"),
@@ -184,7 +187,7 @@ def search_cmd(
     if role:
         filters.append("m.role = ?"); params.append(role)
     if source:
-        filters.append("s.source = ?"); params.append(norm_source(source))
+        filters.append("s.source = ?"); params.append(source)
     if project:
         filters.append("s.project LIKE ?"); params.append(f"%{project}%")
 

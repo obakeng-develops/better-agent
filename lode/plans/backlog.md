@@ -7,7 +7,6 @@ Known gaps between the code, the README, and conventions. Nothing here is decide
 See [../practices.md](../practices.md#cli-design).
 
 - **`--json` is inconsistent.** Only `list`, `search`, and `show` take it, not `import`, `links`, `link`, `unlink`, or `handoff`.
-- **`--source` checking differs by command.** `import` rejects `claude-code`, which `list` and `search` accept.
 - **`search` catches every exception** when it falls back to quoting the query. A real database error turns into a second, confusing query. Catch `sqlite3.OperationalError` only.
 - **Status messages go to stdout.** For example `✓ copied …` and `removed N link(s)`. clig.dev sends them to stderr.
 - **`import` shows no progress** while parsing files. Only the FTS rebuild has a spinner, so a large first import looks stuck.
