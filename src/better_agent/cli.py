@@ -133,12 +133,8 @@ def print_json(obj) -> None:
     console.print_json(json.dumps(obj, default=str))
 
 
-def session_to_dict(row) -> dict:
-    return {k: row[k] for k in row.keys()}
-
-
 def links_to_json(links) -> list[dict]:
-    return [{"session": session_to_dict(o), "type": t, "note": n} for o, t, n in links]
+    return [{"session": dict(o), "type": t, "note": n} for o, t, n in links]
 
 
 def build_pack(conn, s, max_chars: int, full: bool = False) -> str:
@@ -247,7 +243,7 @@ def list_cmd(
     rows = conn.execute(sql, (*params, limit)).fetchall()
 
     if as_json:
-        print_json([session_to_dict(r) for r in rows])
+        print_json([dict(r) for r in rows])
         return
 
     table = Table(show_lines=False)
@@ -333,7 +329,7 @@ def show_cmd(
 
     if as_json:
         print_json({
-            "session": session_to_dict(s),
+            "session": dict(s),
             "messages": [dict(m) for m in messages],
             "links": links_to_json(links),
         })
