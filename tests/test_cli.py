@@ -193,3 +193,23 @@ def test_switch_without_a_session_here_says_how_to_pick_one(tmp_path, monkeypatc
     monkeypatch.chdir(tmp_path / "empty")
     result = runner.invoke(app, ["switch", "opencode"])
     assert result.exit_code == 1 and "--from" in result.stderr
+
+
+def test_copy_uses_the_first_clipboard_tool_on_path(monkeypatch):
+    import shutil
+    import subprocess
+
+    import pytest
+    import typer
+
+    from better_agent import cli
+
+    ran = []
+    monkeypatch.setattr(subprocess, "run", lambda argv, **kw: ran.append((argv, kw["input"])))
+    monkeypatch.setattr(shutil, "which", lambda name: name if name in ("xclip", "xsel") else None)
+    cli.copy_to_clipboard("pack")
+    assert ran == [(["xclip", "-selection", "clipboard"], b"pack")]
+
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    with pytest.raises(typer.Exit):
+        cli.copy_to_clipboard("pack")

@@ -62,4 +62,4 @@ Known gaps are listed in [plans/backlog.md](plans/backlog.md).
 
 ## Dependencies
 
-The only runtime dependencies are typer and rich. Use the stdlib for everything else (`sqlite3`, `hashlib`, `json`). `--copy` shells out to `pbcopy`, so it works on macOS only.
+The only runtime dependencies are typer and rich. Use the stdlib for everything else (`sqlite3`, `hashlib`, `json`). `--copy` shells out to the first clipboard tool on `PATH` (`CLIPBOARD_TOOLS`: pbcopy, wl-copy, xclip, xsel, clip.exe) and exits 1 if there's none.

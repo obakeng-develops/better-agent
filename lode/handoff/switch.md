@@ -33,6 +33,6 @@ OpenCode 2.0 stopped auto-submitting `--prompt` ([opencode#51135](https://github
 - Exits 1 when no session matches, when the project directory doesn't exist on this machine, or when the agent isn't on `PATH`.
 - `SWITCH_FOOTER` comes after the pack. The pack still starts with `PACK_HEADER`, so the next import links the new session back as a `handoff` (see [summary.md](summary.md#handoff-auto-links)).
 - There's no `--json`. A successful run hands the terminal to another program. `--dry-run` covers scripting.
-- No clipboard is needed, so switching works off macOS too.
+- No clipboard is needed.
 
 Related: [summary.md](summary.md), [../sources/summary.md](../sources/summary.md)

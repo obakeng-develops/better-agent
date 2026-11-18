@@ -40,7 +40,7 @@ bta show a1b2 --full           # full transcript
 bta link a1b2 9f8e -t continuation --note "follow-up"
 bta links a1b2
 bta unlink a1b2 9f8e           # asks first; --force skips the question
-bta handoff a1b2 --copy        # context pack to the clipboard (macOS)
+bta handoff a1b2 --copy        # context pack to the clipboard
 bta handoff a1b2 --max-chars 20000
 ```
 

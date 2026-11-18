@@ -97,6 +97,25 @@ def resolve_or_exit(conn, prefix: str):
     return row
 
 
+CLIPBOARD_TOOLS = (  # first one on PATH wins
+    ["pbcopy"],                               # macOS
+    ["wl-copy"],                              # Wayland
+    ["xclip", "-selection", "clipboard"],     # X11
+    ["xsel", "--clipboard", "--input"],       # X11
+    ["clip.exe"],                             # Windows and WSL
+)
+
+
+def copy_to_clipboard(text: str) -> None:
+    for argv in CLIPBOARD_TOOLS:
+        if shutil.which(argv[0]):
+            subprocess.run(argv, input=text.encode(), check=True)
+            return
+    names = ", ".join(a[0] for a in CLIPBOARD_TOOLS)
+    err.print(f"[red]no clipboard tool found ({names}) — pipe the output instead[/red]")
+    raise typer.Exit(1)
+
+
 def print_text(text: str) -> None:
     """Print text as-is: no markup, no highlighting, no wrapping at the terminal width."""
     console.print(text, markup=False, highlight=False, soft_wrap=True)
@@ -435,7 +454,7 @@ def handoff_cmd(
     doc = render_handoff(s, messages, linked_sessions(conn, s["id"]), full=full, max_chars=max_chars)
 
     if copy:
-        subprocess.run(["pbcopy"], input=doc.encode(), check=True)
+        copy_to_clipboard(doc)
     if as_json:
         print_json({"session": s["id"], "pack": doc, "copied": copy})
     elif copy:
