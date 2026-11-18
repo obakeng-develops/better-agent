@@ -14,4 +14,4 @@
 - **pack origin**: the `bta_` id on a pack's `Session:` line. It tells import which session a pasted pack came from.
 - **switch**: continuing a session in the other agent with `bta switch`. The new session starts from the pack and links back as a `handoff`.
 - **dual-era row**: an OpenCode `session_message` row whose parts exist only in the legacy `part` table.
-- **BTA_HOME**: an env var that overrides the data folder (default `~/.better-agent`).
+- **BTA_HOME**: an env var that overrides the data folder. The default is `$XDG_DATA_HOME/better-agent`, falling back to `~/.local/share/better-agent`.

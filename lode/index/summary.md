@@ -1,6 +1,8 @@
 # Index (bta.db)
 
-`db.py` owns the schema and every write helper. `connect()` creates `$BTA_HOME/bta.db` and applies the schema with `CREATE ... IF NOT EXISTS`. There are no migrations, so changing a column means a fresh index (`rm` it, then run `bta import`).
+`db.py` owns the schema and every write helper. `connect()` opens `default_db_path()`: `$BTA_HOME/bta.db` when that's set, otherwise `$XDG_DATA_HOME/better-agent/bta.db` (falling back to `~/.local/share`). It applies the schema with `CREATE ... IF NOT EXISTS`. There are no migrations, so changing a column means a fresh index (`rm` it, then run `bta import`).
+
+Before 0.5 the index lived at `~/.better-agent/bta.db`. When `BTA_HOME` isn't set and the XDG index doesn't exist yet, `connect()` moves the old file over with `os.replace` and removes the folder if it's empty. That keeps hand-made links, which can't be rebuilt from sources. It's safe to delete `move_legacy_db` once nobody runs a pre-0.5 index.
 
 ```mermaid
 erDiagram

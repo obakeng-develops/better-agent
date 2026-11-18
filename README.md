@@ -14,7 +14,7 @@ uv tool install .   # puts `bta` on your PATH
 # development: uv run bta …
 ```
 
-To uninstall, run `uv tool uninstall better-agent`. To delete the index too, run `rm -r ~/.better-agent`.
+To uninstall, run `uv tool uninstall better-agent`. To delete the index too, run `rm -r ~/.local/share/better-agent`.
 
 ## Switch agents
 
@@ -58,7 +58,7 @@ Run `bta -h` or `bta <command> -h` for every flag and example, and `bta --versio
 ## Design
 
 - **Read-only index.** The tools' own files stay the source of truth. `bta` copies them into
-  `~/.better-agent/bta.db` (SQLite with FTS5). Import is idempotent and incremental.
+  `~/.local/share/better-agent/bta.db` (SQLite with FTS5). Import is idempotent and incremental.
 - **Deterministic ids.** `bta_<hash>` comes from `source:source_id`, so a re-import updates
   a session instead of duplicating it.
 - **Deterministic handoffs.** There are no LLM calls. The context pack is built from the
@@ -73,7 +73,9 @@ Run `bta -h` or `bta <command> -h` for every flag and example, and `bta --versio
 | Claude Code | `~/.claude/projects/*/*.jsonl` (only `user`, `assistant`, and `summary` events) |
 | OpenCode v2 | `~/.local/share/opencode/opencode.db`, read-only (`session_v2`, `session_message`, `part`) |
 
-To store the index somewhere else, set `BTA_HOME` (default `~/.better-agent`).
+The index lives in `$XDG_DATA_HOME/better-agent` (default `~/.local/share/better-agent`). To store it
+somewhere else, set `BTA_HOME`. Versions before 0.5 used `~/.better-agent`, and `bta` moves that index
+over the first time it runs.
 
 ## Development
 
