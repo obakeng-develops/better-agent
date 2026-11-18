@@ -17,7 +17,16 @@ from . import db as dbm
 from .handoff import intent_spine, render_handoff, render_transcript
 from .sources import claude, opencode
 
+def examples(*lines: str) -> str:
+    return "[bold]Examples[/bold]\n\n" + "\n\n".join(lines)
+
+
 app = typer.Typer(
+    epilog=examples(
+        "bta import",
+        'bta search "bundle install"',
+        "bta handoff a1b2 --copy",
+    ),
     help="better-agent — local-first, searchable, linkable agent session history.",
     no_args_is_help=True,
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -108,7 +117,7 @@ def linked_sessions(conn, sid: str) -> list[tuple[object, str, str | None]]:
 
 # ---------- commands ----------
 
-@app.command("import")
+@app.command("import", epilog=examples("bta import", "bta import --source opencode --force"))
 def import_cmd(
     source: str = typer.Option(None, "--source", "-s", callback=norm_source,
                                help="claude | opencode (default: both)"),
@@ -153,7 +162,10 @@ def import_cmd(
             )
 
 
-@app.command("list")
+@app.command("list", epilog=examples(
+    "bta list --since 7d",
+    "bta list --project myapp --source claude --json",
+))
 def list_cmd(
     source: str = typer.Option(None, "--source", "-s", callback=norm_source,
                                help="claude | opencode"),
@@ -195,7 +207,10 @@ def list_cmd(
     console.print(table)
 
 
-@app.command("search")
+@app.command("search", epilog=examples(
+    'bta search "bundle install"',
+    "bta search migration --role user --limit 20",
+))
 def search_cmd(
     query: str,
     role: str = typer.Option(None, "--role", "-r", help="user | assistant"),
@@ -247,7 +262,7 @@ def search_cmd(
         console.print(f"  {r['snip']}\n")
 
 
-@app.command("show")
+@app.command("show", epilog=examples("bta show a1b2", "bta show a1b2 --full"))
 def show_cmd(
     session_id: str,
     full: bool = typer.Option(False, "--full", help="print the whole transcript"),
@@ -301,7 +316,10 @@ def show_cmd(
         console.print(f"{i:>3}. [dim]{rel_time(m['created_at'])}[/dim] {' '.join(text)[:140]}")
 
 
-@app.command("link")
+@app.command("link", epilog=examples(
+    "bta link a1b2 9f8e",
+    'bta link a1b2 9f8e -t continuation --note "follow-up"',
+))
 def link_cmd(
     a: str,
     b: str,
@@ -310,7 +328,7 @@ def link_cmd(
     note: str = typer.Option(None, "--note"),
     as_json: bool = typer.Option(False, "--json"),
 ):
-    """Link two sessions (e.g. bta link a1b2 9f8e -t continuation)."""
+    """Link two related sessions."""
     conn = dbm.connect()
     sa, sb = resolve_or_exit(conn, a), resolve_or_exit(conn, b)
     if sa["id"] == sb["id"]:
@@ -327,7 +345,7 @@ def link_cmd(
         err.print("[dim]link already exists[/dim]")
 
 
-@app.command("links")
+@app.command("links", epilog=examples("bta links a1b2"))
 def links_cmd(
     session_id: str,
     as_json: bool = typer.Option(False, "--json"),
@@ -349,7 +367,7 @@ def links_cmd(
         )
 
 
-@app.command("unlink")
+@app.command("unlink", epilog=examples("bta unlink a1b2 9f8e"))
 def unlink_cmd(
     a: str,
     b: str,
@@ -369,7 +387,10 @@ def unlink_cmd(
     err.print(f"removed {cur.rowcount} link(s)")
 
 
-@app.command("handoff")
+@app.command("handoff", epilog=examples(
+    "bta handoff a1b2 --copy",
+    "bta handoff a1b2 --full --max-chars 20000",
+))
 def handoff_cmd(
     session_id: str,
     full: bool = typer.Option(False, "--full", help="include the whole transcript"),

@@ -95,3 +95,10 @@ def test_status_messages_go_to_stderr(tmp_path, monkeypatch):
         result = runner.invoke(app, args)
         assert result.exit_code == 0, args
         assert result.stdout == "" and result.stderr, args
+
+
+def test_every_command_has_help_examples():
+    commands = ["import", "list", "search", "show", "link", "links", "unlink", "handoff"]
+    for args in ([], *([c] for c in commands)):
+        result = runner.invoke(app, [*args, "--help"])
+        assert "Examples" in result.output and "bta " in result.output, args

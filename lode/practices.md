@@ -37,6 +37,7 @@ The returned dict carries `source`, `sessions`, `messages`, and `skipped`, plus 
 - Changes are additive. Don't rename or repurpose a flag; add a new one.
 - Bail out on bad input before any side effects.
 - Color is left to rich, which respects `NO_COLOR` and non-TTY output.
+- Every command's help ends with 1 or 2 runnable examples, `@app.command(..., epilog=examples(...))`. A new command needs them too; a test checks it.
 
 ```python
 @app.command("list")

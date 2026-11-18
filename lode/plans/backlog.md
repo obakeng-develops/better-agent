@@ -6,7 +6,6 @@ Known gaps between the code, the README, and conventions. Nothing here is decide
 
 See [../practices.md](../practices.md#cli-design).
 
-- **No examples in help text,** except on `link`.
 - **The data folder ignores XDG.** It's `~/.better-agent` rather than `$XDG_DATA_HOME/better-agent`. Changing it is a breaking move, so pair it with a migration note.
 - **`unlink` deletes without confirming.** Links made by hand can't be rebuilt from sources.
 
