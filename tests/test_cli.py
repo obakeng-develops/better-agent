@@ -98,7 +98,7 @@ def test_status_messages_go_to_stderr(tmp_path, monkeypatch):
 
 
 def test_every_command_has_help_examples():
-    commands = ["import", "list", "search", "show", "link", "links", "unlink", "handoff"]
+    commands = ["import", "list", "search", "show", "link", "links", "unlink", "handoff", "switch"]
     for args in ([], *([c] for c in commands)):
         result = runner.invoke(app, [*args, "--help"])
         assert "Examples" in result.output and "bta " in result.output, args
@@ -163,7 +163,7 @@ def switch_setup(tmp_path, monkeypatch):
 
 def test_switch_dry_run_picks_latest_session_here_from_the_other_agent(tmp_path, monkeypatch):
     ids = switch_setup(tmp_path, monkeypatch)
-    result = runner.invoke(app, ["switch", "opencode", "-n"])
+    result = runner.invoke(app, ["switch", "--to", "opencode", "-n"])
     assert result.exit_code == 0, result.output
     assert f"Session: {ids['claude']} " in result.stdout  # not the opencode one, not another dir
     assert result.stdout.rstrip().endswith('pick up from "Where things stand".')
@@ -180,7 +180,7 @@ def test_switch_execs_the_agent_in_the_project_directory(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "execvp", lambda file, argv: calls.update(file=file, argv=argv))
     monkeypatch.chdir("/")
 
-    result = runner.invoke(app, ["switch", "claude", "--from", ids["opencode"], "--yes"])
+    result = runner.invoke(app, ["switch", "--to", "claude", "--from", ids["opencode"], "--yes"])
     assert result.exit_code == 0, result.output
     assert calls["file"] == "claude"
     assert calls["argv"][1].startswith("# Context handoff: newest-overall")
@@ -191,7 +191,7 @@ def test_switch_without_a_session_here_says_how_to_pick_one(tmp_path, monkeypatc
     switch_setup(tmp_path, monkeypatch)
     (tmp_path / "empty").mkdir()
     monkeypatch.chdir(tmp_path / "empty")
-    result = runner.invoke(app, ["switch", "opencode", "--yes"])
+    result = runner.invoke(app, ["switch", "--to", "opencode", "--yes"])
     assert result.exit_code == 1 and "--from" in result.stderr
 
 
@@ -217,8 +217,17 @@ def test_copy_uses_the_first_clipboard_tool_on_path(monkeypatch):
 
 def test_switch_needs_yes_without_a_terminal(tmp_path, monkeypatch):
     switch_setup(tmp_path, monkeypatch)
-    result = runner.invoke(app, ["switch", "opencode"])
+    result = runner.invoke(app, ["switch", "--to", "opencode"])
     assert result.exit_code == 1 and "--yes" in result.stderr
+
+
+def test_switch_requires_valid_destination_before_import(tmp_path, monkeypatch):
+    monkeypatch.setenv("BTA_HOME", str(tmp_path))
+    for args in (["switch"], ["switch", "opencode", "--dry-run"],
+                 ["switch", "--to", "bogus", "--dry-run"]):
+        result = runner.invoke(app, args)
+        assert result.exit_code == 2, (args, result.output)
+    assert not (tmp_path / "bta.db").exists()
 
 
 def test_switch_picker_preview_and_confirm(tmp_path, monkeypatch):
@@ -234,11 +243,11 @@ def test_switch_picker_preview_and_confirm(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "execvp", lambda file, argv: calls.update(argv=argv))
 
     # two Claude Code sessions here; pick the second (older) one, then decline
-    result = runner.invoke(app, ["switch", "opencode"], input="2\nn\n")
+    result = runner.invoke(app, ["switch", "--to", "opencode"], input="2\nn\n")
     assert result.exit_code == 1 and not calls
     assert ids["claude"] in result.stderr and ids["older_claude"] in result.stderr
     assert "Pack" in result.stderr and "Continue in OpenCode?" in result.stderr
 
-    result = runner.invoke(app, ["switch", "opencode"], input="2\ny\n")
+    result = runner.invoke(app, ["switch", "--to", "opencode"], input="2\ny\n")
     assert result.exit_code == 0, result.output
     assert f"Session: {ids['older_claude']} " in calls["argv"][2]

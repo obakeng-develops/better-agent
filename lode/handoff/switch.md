@@ -1,10 +1,10 @@
 # Switching agents
 
-`bta switch <claude|opencode>` continues a session in the other agent. It imports, lets you pick the session, previews what will happen, asks, then replaces itself with the target agent (`os.execvp`). The agent starts in the session's project directory with the pack as its first message.
+`bta switch --to <claude|opencode>` continues a session in the named provider. The required `--to` makes the destination explicit. The command imports, lets you pick the session, previews what will happen, asks, then replaces itself with the target provider (`os.execvp`). It starts in the session's project directory with the pack as its first message.
 
 ```mermaid
 flowchart LR
-  S[bta switch AGENT] --> I[run_import: incremental, ~0.7s]
+  S[bta switch --to PROVIDER] --> I[run_import: incremental, ~0.7s]
   I --> P{--from?}
   P -- yes --> R[resolve_or_exit]
   P -- no --> L[sessions_in cwd, source != AGENT]
@@ -32,7 +32,7 @@ The preview shows the session header, the last 10 requests with an `activity_lin
 
 ## Session choice
 
-Without `--from`, the candidates are up to 9 recent sessions whose `project` is the current directory and whose source isn't the target, newest first. You switch away from one agent, so `bta switch opencode` never offers an OpenCode session. Paths are prefiltered with `lower()` and confirmed with `os.path.samefile`, because macOS paths are case-insensitive (`~/Desktop` and `~/desktop` are the same folder).
+Without `--from`, the candidates are up to 9 recent sessions whose `project` is the current directory and whose source isn't the target, newest first. `bta switch --to opencode` never offers an OpenCode session. Paths are prefiltered with `lower()` and confirmed with `os.path.samefile`, because macOS paths are case-insensitive (`~/Desktop` and `~/desktop` are the same folder).
 
 ## Launch commands
 

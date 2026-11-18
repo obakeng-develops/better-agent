@@ -16,4 +16,5 @@
 - plans/
   - [backlog.md](plans/backlog.md): known gaps (empty)
   - [share.md](plans/share.md): shaped pitch, not built yet. `bta share` writes one HTML page of a session for teammates, with redaction.
+  - [switch-to-option.md](plans/switch-to-option.md): implemented in 0.7.0; `bta switch --to` makes the destination explicit.
 - tmp/: session scraps (git-ignored)

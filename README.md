@@ -19,10 +19,10 @@ To uninstall, run `uv tool uninstall better-agent`. To delete the index too, run
 ## Switch agents
 
 ```sh
-bta switch opencode            # pick a Claude Code session here, preview it, continue in OpenCode
-bta switch claude              # and back again
-bta switch opencode --yes      # skip the picker and preview, continue the latest session
-bta switch claude --from a1b2 --dry-run   # print the pack and command without running them
+bta switch --to opencode            # pick a Claude Code session here, preview it, continue in OpenCode
+bta switch --to claude              # and back again
+bta switch --to opencode --yes      # skip the picker and preview, continue the latest session
+bta switch --to claude --from a1b2 --dry-run   # print the pack and command without running them
 ```
 
 `switch` imports, then lists this directory's recent sessions from the other agent. After you

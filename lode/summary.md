@@ -8,7 +8,7 @@ flowchart LR
   OC[(opencode.db, read-only)] -->|sources/opencode.py| DB
   DB --> CLI[bta list / search / show / link]
   DB -->|handoff.py| PACK[handoff pack: stdout or clipboard]
-  PACK -->|bta switch| AG[claude / opencode, started with the pack]
+  PACK -->|bta switch --to PROVIDER| AG[claude / opencode, started with the pack]
   AG -.->|next import links it back| DB
 ```
 

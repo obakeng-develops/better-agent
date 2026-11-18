@@ -557,12 +557,13 @@ def preview_switch(conn, s, pack: str, shown: str, recent: int = 10) -> None:
 
 
 @app.command("switch", epilog=examples(
-    "bta switch opencode",
-    "bta switch claude --from a1b2 --yes",
-    "bta switch opencode --dry-run",
+    "bta switch --to opencode",
+    "bta switch --to claude --from a1b2 --yes",
+    "bta switch --to opencode --dry-run",
 ))
 def switch_cmd(
-    agent: str = typer.Argument(..., callback=norm_source, help="claude | opencode"),
+    provider: str = typer.Option(..., "--to", callback=norm_source,
+                                 help="Destination provider: claude | opencode"),
     from_: str = typer.Option(None, "--from", help="Session to continue. Default: pick from "
                               "this directory's recent sessions from the other agent."),
     max_chars: int = typer.Option(8000, "--max-chars"),
@@ -571,7 +572,7 @@ def switch_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", "-n",
                                  help="Print the pack and the command instead of running it."),
 ):
-    """Continue a session in another agent: pick it, preview it, then start the agent with its pack."""
+    """Continue a session with another provider: pick it, preview it, then start it with its pack."""
     interactive = not (yes or dry_run)
     if interactive and not stdin_is_terminal():
         err.print("[red]switch asks before launching — pass --yes, or --dry-run to preview[/red]")
@@ -582,7 +583,7 @@ def switch_cmd(
     if from_:
         s = resolve_or_exit(conn, from_)
     else:
-        candidates = sessions_in(conn, os.getcwd(), exclude_source=agent)
+        candidates = sessions_in(conn, os.getcwd(), exclude_source=provider)
         if not candidates:
             err.print(f"[red]no session in {escape(os.getcwd())} from another agent — "
                       "pass --from SESSION[/red]")
@@ -594,7 +595,7 @@ def switch_cmd(
         raise typer.Exit(1)
 
     pack = build_pack(conn, s, max_chars) + SWITCH_FOOTER
-    argv = agent_argv(agent, pack, project)
+    argv = agent_argv(provider, pack, project)
     shown = shlex.join(a if a != pack else "<pack>" for a in argv)
 
     if dry_run:
@@ -606,8 +607,8 @@ def switch_cmd(
         raise typer.Exit(1)
     if interactive:
         preview_switch(conn, s, pack, shown)
-        typer.confirm(f"Continue in {AGENT_NAMES[agent]}?", default=True, abort=True, err=True)
-    hint = " (press Enter there to send the pack)" if agent == "opencode" else ""
+        typer.confirm(f"Continue in {AGENT_NAMES[provider]}?", default=True, abort=True, err=True)
+    hint = " (press Enter there to send the pack)" if provider == "opencode" else ""
     err.print(f"continuing {s['id']} ({s['source']}) in {argv[0]}{hint}…",
               markup=False, highlight=False)
     os.chdir(project)
