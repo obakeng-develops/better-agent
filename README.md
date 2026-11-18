@@ -21,7 +21,7 @@ bta list                       # recent sessions
 bta search "bundle install"    # full-text search across all messages
 bta show bta_a1b2c3d4           # header + intent spine (your messages, in order)
 bta show a1b2 --full           # full transcript
-bta link a1b2 9f8e -t continuation -n "follow-up"
+bta link a1b2 9f8e -t continuation --note "follow-up"
 bta links a1b2
 bta handoff a1b2 --copy        # context pack → clipboard, paste into another agent
 ```

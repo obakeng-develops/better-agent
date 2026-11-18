@@ -133,7 +133,7 @@ def list_cmd(
     source: str = typer.Option(None, "--source", "-s"),
     project: str = typer.Option(None, "--project", "-p", help="substring of project path"),
     since: str = typer.Option(None, "--since", help="e.g. 24h, 7d, 2w"),
-    limit: int = typer.Option(30, "--limit", "-n"),
+    limit: int = typer.Option(30, "--limit"),
     as_json: bool = typer.Option(False, "--json"),
 ):
     """List sessions, most recently updated first."""
@@ -175,7 +175,7 @@ def search_cmd(
     role: str = typer.Option(None, "--role", "-r", help="user | assistant"),
     source: str = typer.Option(None, "--source", "-s"),
     project: str = typer.Option(None, "--project", "-p"),
-    limit: int = typer.Option(10, "--limit", "-n"),
+    limit: int = typer.Option(10, "--limit"),
     as_json: bool = typer.Option(False, "--json"),
 ):
     """Full-text search across all imported messages."""
@@ -280,7 +280,7 @@ def link_cmd(
     b: str,
     type: str = typer.Option("related", "--type", "-t",
                              help="related | continuation | handoff | fork | subagent"),
-    note: str = typer.Option(None, "--note", "-n"),
+    note: str = typer.Option(None, "--note"),
 ):
     """Link two sessions (e.g. bta link a1b2 9f8e -t continuation)."""
     conn = dbm.connect()
