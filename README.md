@@ -1,103 +1,98 @@
 # better-agent
 
-Local-first, searchable, linkable history for coding-agent sessions (Claude Code, OpenCode),
-and one command to carry a session from one agent to the other.
+`bta` keeps the history of your Claude Code and OpenCode sessions in one local database and moves a session from one agent to the other.
 
-Agent sessions are short-lived and scattered across tools. `bta` imports them into one
-local SQLite database, makes them full-text searchable, lets you link related sessions, and
-renders paste-ready context packs for moving a conversation from one agent to another.
+Each agent keeps its history in its own place and its own format. When you want to carry on a Claude Code session in OpenCode, you end up explaining the work again, and finding what you did last week means searching two places.
 
-## Install
+`bta` imports both into one SQLite database on your machine, makes every message full-text searchable and builds a summary of a session that you can hand to the other agent. It doesn't send anything anywhere and it doesn't call an LLM.
+
+## Installing bta
 
 ```sh
-uv tool install .   # puts `bta` on your PATH
-# development: uv run bta …
+uv tool install .
 ```
+
+This puts `bta` on your PATH. While you work on `bta` itself, run it with `uv run bta …` instead.
 
 To uninstall, run `uv tool uninstall better-agent`. To delete the index too, run `rm -r ~/.local/share/better-agent`.
 
-## Switch agents
+## Switching agents
 
 ```sh
-bta switch --to opencode            # pick a Claude Code session here, preview it, continue in OpenCode
-bta switch --to claude              # and back again
-bta switch --to opencode --yes      # skip the picker and preview, continue the latest session
-bta switch --to claude --from a1b2 --dry-run   # print the pack and command without running them
+bta switch --to opencode                       # continue a Claude Code session in OpenCode
+bta switch --to claude                         # continue an OpenCode session in Claude Code
+bta switch --to opencode --yes                 # skip the picker and preview, take the latest session
+bta switch --to claude --from a1b2 --dry-run   # print the pack and the command without running them
 ```
 
-`switch` imports, then lists this directory's recent sessions from the other agent. After you
-pick one, it previews your requests with what the agent did for each, the live git state, and
-the exact command, then asks before it starts the other agent in the session's project
-directory with the pack as its first message. Claude Code sends it right
-away. OpenCode 2.0 puts it in the input box, so you press Enter. The next `bta import`
-links the new session to the old one as a `handoff`.
+`switch` imports first, then lists recent sessions from the other agent in the current directory and the directories under it. When you pick one, it shows your requests with what the agent did for each, the live git state and the command it's about to run. If you confirm, it starts the other agent in the session's project directory with the pack as the first message.
 
-To get back into a session after you exit its agent, run `bta resume`. It offers recent
-sessions here and below from both agents and reopens the one you pick with the agent's own
-resume (`claude --resume` or `opencode --session`), in the session's project directory.
+Claude Code sends the pack straight away. OpenCode 2.0 puts it in the input box and you press Enter. The next `bta import` links the new session back to the old one as a `handoff`.
+
+The pack is a summary of the session: your requests with the agent's activity under each, the files touched, the git state (branch, uncommitted changes and commits since the session started) and the agent's last reply. Its header tells the new agent to run `bta show ID --json` for the full history, which needs `bta` on your PATH.
+
+## Resuming a session
+
+When you exit an agent, `bta resume` takes you back into the same conversation:
 
 ```sh
-bta resume                          # pick a session here, reopen it where it came from
-bta resume a1b2 --dry-run           # print the command without running it
+bta resume                  # pick a session here and reopen it in the agent it came from
+bta resume a1b2 --dry-run   # print the command without running it
 ```
 
-The pack is a summary: your requests and the agent's activity under each, files touched, live
-git state (branch, uncommitted changes, commits since the session started), and the agent's last
-reply. Its header tells the new agent how to pull the full history with `bta show ID --json`, so
-`bta` needs to be on your PATH.
+It offers sessions from both agents and runs the agent's own resume (`claude --resume` or `opencode --session`) in the session's project directory. It doesn't send a pack or start a new session.
 
-## Usage
+## Searching your history
 
 ```sh
-bta import                     # import new and updated sessions, with a progress bar
-bta list --since 7d            # recent sessions
-bta search "bundle install"    # full-text search across all messages
-bta show a1b2                  # header plus intent spine (your messages, in order)
-bta show a1b2 --full           # full transcript
-bta link a1b2 9f8e -t continuation --note "follow-up"
-bta links a1b2
-bta unlink a1b2 9f8e           # asks first; --force skips the question
-bta handoff a1b2 --copy        # context pack to the clipboard
-bta handoff a1b2 --max-chars 20000
+bta import                    # import new and updated sessions
+bta list --since 7d           # recent sessions
+bta search "bundle install"   # full-text search across every message
+bta show a1b2                 # the session header and your messages in order
+bta show a1b2 --full          # the full transcript
+bta handoff a1b2 --copy       # copy the pack to the clipboard
 ```
 
 Session ids look like `bta_a1b2c3d4`. Any unique prefix works, with or without `bta_`.
 
-Run `bta -h` or `bta <command> -h` for every flag and example, and `bta --version` for the version.
+## Linking sessions
 
-## Scripting
+```sh
+bta link a1b2 9f8e -t continuation --note "follow-up"
+bta links a1b2
+bta unlink a1b2 9f8e   # asks first; --force skips the question
+```
 
-- Every command except `switch` and `resume` takes `--json`, and its shape stays stable between versions. Both hand your terminal to another program, so use `--dry-run` to script them.
-- Results go to stdout. Errors, confirmations, and notes such as `no matches` go to stderr.
-- `bta` exits 0 on success, 1 on a failure such as an unknown session id, and 2 on a usage error.
+The link types are `related`, `continuation`, `handoff`, `fork` and `subagent`. Import adds some links for you: OpenCode subagent and fork sessions, and any session that starts from a pasted pack.
+
+Run `bta -h` or `bta <command> -h` for every flag with examples, and `bta --version` for the version.
+
+## Scripting bta
+
+- Every command except `switch` and `resume` takes `--json`, and its output stays the same between versions. Those two hand your terminal to another program. Use `--dry-run` to script them.
+- Results go to stdout. Errors, prompts and notes such as `no matches` go to stderr.
+- `bta` exits 0 on success, 1 on a failure such as an unknown session id and 2 on a usage error.
 - Without a terminal, `unlink` exits 1 unless you pass `--force`, and `switch` exits 1 unless you pass `--yes` or `--dry-run`.
 
-## Design
+## Understanding the index
 
-- **Read-only index.** The tools' own files stay the source of truth. `bta` copies them into
-  `~/.local/share/better-agent/bta.db` (SQLite with FTS5). Import is idempotent and incremental.
-- **Deterministic ids.** `bta_<hash>` comes from `source:source_id`, so a re-import updates
-  a session instead of duplicating it.
-- **Deterministic handoffs.** There are no LLM calls. The context pack is built from the
-  intent spine, the files touched, and the last thing the agent said.
-- **Auto-links.** Import links OpenCode subagent (`parent_id`) and fork sessions, and any
-  session that starts from a pasted handoff pack, automatically.
+`bta` only reads the agents' files. They stay the source of truth and you can rebuild the index from them at any time with `bta import --force`.
 
-## Sources
-
-| Source | What is read |
+| Agent | What `bta` reads |
 |---|---|
-| Claude Code | `~/.claude/projects/*/*.jsonl` (only `user`, `assistant`, and `summary` events) |
-| OpenCode v2 | `~/.local/share/opencode/opencode.db`, read-only (`session_v2`, `session_message`, `part`) |
+| Claude Code | `~/.claude/projects/*/*.jsonl`, only the `user`, `assistant` and `summary` events |
+| OpenCode | `~/.local/share/opencode/opencode.db`, opened read-only |
 
-The index lives in `$XDG_DATA_HOME/better-agent` (default `~/.local/share/better-agent`). To store it
-somewhere else, set `BTA_HOME`. Versions before 0.5 used `~/.better-agent`, and `bta` moves that index
-over the first time it runs.
+The index is a SQLite database with FTS5 in `$XDG_DATA_HOME/better-agent`, which defaults to `~/.local/share/better-agent`. Set `BTA_HOME` to keep it somewhere else. Versions before 0.5 used `~/.better-agent`, and `bta` moves that index over the first time it runs.
 
-## Development
+A session's id is a hash of the agent and the agent's own session id. Importing again updates the session instead of adding a copy. Packs come from the imported messages and the live git state, without an LLM.
+
+Nothing in the index is redacted. Packs, transcripts and search results show messages exactly as they were written, so read a pack before you send it to anyone.
+
+## Contributing
 
 ```sh
 uv run pytest
 ```
 
-Design notes for contributors and agents are in [`lode/`](lode/lode-map.md). CLI conventions follow [clig.dev](https://clig.dev/).
+Design notes for contributors and agents are in [`lode/`](lode/lode-map.md). Commands and flags follow [clig.dev](https://clig.dev/).
