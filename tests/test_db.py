@@ -67,3 +67,13 @@ def test_links_are_idempotent(tmp_path):
     assert dbm.insert_link(conn, a, b, "continuation", "why") is True
     assert dbm.insert_link(conn, a, b, "continuation", "why") is False  # already exists
     assert dbm.insert_link(conn, a, b, "related") is True  # different type is a new link
+
+
+def test_insert_link_ignores_the_reverse_direction(tmp_path):
+    conn = dbm.connect(tmp_path / "bta.db")
+    a = dbm.upsert_session(conn, make_session("s1"))
+    b = dbm.upsert_session(conn, make_session("s2"))
+    assert dbm.insert_link(conn, a, b, "related")
+    assert not dbm.insert_link(conn, b, a, "related")
+    assert dbm.insert_link(conn, b, a, "handoff")  # a different type is a different link
+    assert conn.execute("SELECT COUNT(*) FROM links").fetchone()[0] == 2

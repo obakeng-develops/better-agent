@@ -132,9 +132,14 @@ def rebuild_fts(conn: sqlite3.Connection) -> None:
 
 
 def insert_link(conn: sqlite3.Connection, a: str, b: str, type: str, note: str | None = None) -> bool:
+    """Insert a link unless the same type already joins a and b, in either order."""
     cur = conn.execute(
-        "INSERT OR IGNORE INTO links (a, b, type, note, created_at) VALUES (?,?,?,?,?)",
-        (a, b, type, note, int(time.time() * 1000)),
+        """INSERT INTO links (a, b, type, note, created_at)
+           SELECT ?, ?, ?, ?, ?
+           WHERE NOT EXISTS (
+             SELECT 1 FROM links WHERE type = ? AND ((a = ? AND b = ?) OR (a = ? AND b = ?))
+           )""",
+        (a, b, type, note, int(time.time() * 1000), type, a, b, b, a),
     )
     return cur.rowcount > 0
 

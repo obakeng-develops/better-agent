@@ -18,7 +18,7 @@ erDiagram
 - **sessions**: one row per source session. `raw_meta` holds per-source extras: Claude `version` and `project_slug`, or OpenCode `slug`, `agent`, and `cost`.
 - **messages**: replaced wholesale on each re-import (`replace_messages` deletes, then inserts). `parts` holds the normalized JSON. `text` holds what gets indexed.
 - **messages_fts**: an external-content FTS5 table over `messages.text`. `import_cmd` runs a full `rebuild` after any import that wrote messages. It doesn't update incrementally.
-- **links**: primary key `(a, b, type)`. Reads treat links as undirected (`linked_sessions` matches either side), and `unlink` deletes both directions. A reversed duplicate `(b, a, type)` isn't prevented.
+- **links**: primary key `(a, b, type)`. Reads treat links as undirected (`linked_sessions` matches either side), and `unlink` deletes both directions. `insert_link` skips a link whose type already joins the pair in either order, so `(b, a, type)` never duplicates `(a, b, type)`.
 - **imports**: a change-detection cache keyed by `claude:<path>` or `opencode:db`.
 
 ## Search
