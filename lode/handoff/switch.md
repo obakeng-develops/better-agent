@@ -43,6 +43,17 @@ Without `--from`, the candidates are up to 9 recent sessions whose `project` is 
 
 OpenCode 2.0 stopped auto-submitting `--prompt` ([opencode#51135](https://github.com/anomalyco/opencode/issues/51135)). `switch` tells you to press Enter. Don't work around it with `opencode run`, which isn't interactive.
 
+## Resume
+
+`bta resume [SESSION]` reopens a session in its own agent. Without a SESSION it uses `sessions_in` with no excluded source, so both agents' sessions are offered. The picker shows when stdin is a terminal and more than one matches; otherwise it takes the newest. The picker is the only confirmation; there's no preview, because no pack is sent and nothing new is created. `-n/--dry-run` prints `cd <project> && <argv>` to stdout.
+
+| Source | argv |
+|---|---|
+| Claude Code | `claude --resume <source_id>` |
+| OpenCode | `opencode --session <source_id> <project>` |
+
+It shares `project_or_exit` and `require_on_path` with `switch`, and also `chdir`s before `execvp`, because Claude Code looks up sessions by the current directory.
+
 ## Contracts
 
 - Exits 1 when no session matches, when the project directory doesn't exist on this machine, or when the agent isn't on `PATH`.

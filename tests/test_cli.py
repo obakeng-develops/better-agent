@@ -273,3 +273,44 @@ def test_switch_offers_sessions_from_subdirectories_not_siblings(tmp_path, monke
     titles = [r["title"] for r in cli.sessions_in(conn, str(tmp_path), "opencode")]
     assert titles == ["in-repo", "newest-claude", "older"]
     assert [r["title"] for r in cli.sessions_in(conn, str(tmp_path / "repo"), "opencode")] == ["in-repo"]
+
+
+def test_resume_reopens_the_latest_session_here_in_its_own_agent(tmp_path, monkeypatch):
+    import os
+    import shutil
+
+    ids = switch_setup(tmp_path, monkeypatch)
+    result = runner.invoke(app, ["resume", "-n"])  # newest here from either agent, not elsewhere
+    assert result.exit_code == 0, result.output
+    assert result.stdout.strip() == f"cd {tmp_path} && opencode --session newest-overall {tmp_path}"
+
+    calls = {}
+    monkeypatch.setattr(shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(os, "execvp", lambda file, argv: calls.update(file=file, argv=argv))
+    monkeypatch.chdir("/")
+    result = runner.invoke(app, ["resume", ids["claude"]])
+    assert result.exit_code == 0, result.output
+    assert calls["argv"] == ["claude", "--resume", "newest-claude"]
+    assert os.path.samefile(os.getcwd(), tmp_path)
+
+
+def test_resume_picker_offers_both_agents(tmp_path, monkeypatch):
+    from better_agent import cli
+
+    ids = switch_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(cli, "stdin_is_terminal", lambda: True)
+    monkeypatch.setattr(cli, "require_on_path", lambda cmd: None)
+    calls = {}
+    monkeypatch.setattr(cli.os, "execvp", lambda file, argv: calls.update(argv=argv))
+    result = runner.invoke(app, ["resume"], input="2\n")
+    assert result.exit_code == 0, result.output
+    assert ids["opencode"] in result.stderr and ids["older_claude"] in result.stderr
+    assert calls["argv"] == ["claude", "--resume", "newest-claude"]
+
+
+def test_resume_without_a_session_here_says_how_to_pick_one(tmp_path, monkeypatch):
+    switch_setup(tmp_path, monkeypatch)
+    (tmp_path / "empty").mkdir()
+    monkeypatch.chdir(tmp_path / "empty")
+    result = runner.invoke(app, ["resume"])
+    assert result.exit_code == 1 and "SESSION" in result.stderr

@@ -1,6 +1,6 @@
 # Pitch: `bta resume` reopens a session in its own agent
 
-Status: approved, building. Reader: `bta switch` users.
+Status: implemented in 0.7.2. Reader: `bta switch` users.
 
 ## Problem
 

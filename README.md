@@ -32,6 +32,15 @@ directory with the pack as its first message. Claude Code sends it right
 away. OpenCode 2.0 puts it in the input box, so you press Enter. The next `bta import`
 links the new session to the old one as a `handoff`.
 
+To get back into a session after you exit its agent, run `bta resume`. It offers recent
+sessions here and below from both agents and reopens the one you pick with the agent's own
+resume (`claude --resume` or `opencode --session`), in the session's project directory.
+
+```sh
+bta resume                          # pick a session here, reopen it where it came from
+bta resume a1b2 --dry-run           # print the command without running it
+```
+
 The pack is a summary: your requests and the agent's activity under each, files touched, live
 git state (branch, uncommitted changes, commits since the session started), and the agent's last
 reply. Its header tells the new agent how to pull the full history with `bta show ID --json`, so
@@ -58,7 +67,7 @@ Run `bta -h` or `bta <command> -h` for every flag and example, and `bta --versio
 
 ## Scripting
 
-- Every command except `switch` takes `--json`, and its shape stays stable between versions. `switch` hands your terminal to another program, so use `switch --dry-run` to script it.
+- Every command except `switch` and `resume` takes `--json`, and its shape stays stable between versions. Both hand your terminal to another program, so use `--dry-run` to script them.
 - Results go to stdout. Errors, confirmations, and notes such as `no matches` go to stderr.
 - `bta` exits 0 on success, 1 on a failure such as an unknown session id, and 2 on a usage error.
 - Without a terminal, `unlink` exits 1 unless you pass `--force`, and `switch` exits 1 unless you pass `--yes` or `--dry-run`.

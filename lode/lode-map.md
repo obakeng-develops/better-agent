@@ -18,4 +18,5 @@
   - [share.md](plans/share.md): shaped pitch, not built yet. `bta share` writes one HTML page of a session for teammates, with redaction.
   - [switch-to-option.md](plans/switch-to-option.md): implemented in 0.7.0; `bta switch --to` makes the destination explicit.
   - [switch-subdirectories.md](plans/switch-subdirectories.md): implemented in 0.7.1; the `bta switch` picker also offers sessions from directories below the current one.
+  - [resume.md](plans/resume.md): implemented in 0.7.2; `bta resume` reopens a session in its own agent.
 - tmp/: session scraps (git-ignored)
