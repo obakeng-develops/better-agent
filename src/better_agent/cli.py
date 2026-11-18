@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from importlib.metadata import version
 import subprocess
 import time
 from pathlib import Path
@@ -17,9 +18,24 @@ from .sources import claude, opencode
 app = typer.Typer(
     help="better-agent — local-first, searchable, linkable agent session history.",
     no_args_is_help=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 console = Console()
 err = Console(stderr=True)
+
+
+def show_version(value: bool) -> None:
+    if value:
+        console.print(f"bta {version('better-agent')}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    _version: bool = typer.Option(False, "--version", callback=show_version, is_eager=True,
+                                  help="Show the version and exit."),
+):
+    pass
 
 
 # ---------- helpers ----------

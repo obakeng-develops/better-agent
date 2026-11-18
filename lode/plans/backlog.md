@@ -6,7 +6,6 @@ Known gaps between the code, the README, and conventions. Nothing here is decide
 
 See [../practices.md](../practices.md#cli-design).
 
-- **No `-h` or `--version`.** Only `--help` works. Fix with `context_settings={"help_option_names": ["-h", "--help"]}` and a version callback.
 - **`-n` means two things,** and neither is `--dry-run`. It's `--limit` on `list` and `search`, and `--note` on `link`.
 - **`--json` is inconsistent.** Only `list`, `search`, and `show` take it, not `import`, `links`, `link`, `unlink`, or `handoff`.
 - **`--source` checking differs by command.** `import` rejects `claude-code`, which `list` and `search` accept.
