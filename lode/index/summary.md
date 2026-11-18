@@ -23,7 +23,7 @@ erDiagram
 
 ## Search
 
-`search` runs `MATCH` with the user's query as typed, so FTS5 syntax works. If that raises an error, it quotes every token and retries:
+`search` runs `MATCH` with the user's query as typed, so FTS5 syntax works. If that raises `sqlite3.OperationalError` (an FTS5 syntax error), it quotes every token and retries. Other errors aren't caught:
 
 ```python
 quoted = " ".join('"' + t.replace('"', '""') + '"' for t in query.split())

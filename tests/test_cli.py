@@ -81,3 +81,9 @@ def test_json_on_import(tmp_path, monkeypatch):
     stats = run_json(["import"])
     assert [s["source"] for s in stats] == ["claude-code", "opencode"]
     assert all(s["skipped"] >= 0 and s["sessions"] == 0 for s in stats)
+
+
+def test_search_retries_fts_syntax_errors_as_quoted_terms(tmp_path, monkeypatch):
+    seed_two_sessions(tmp_path, monkeypatch)
+    # an unbalanced quote is an FTS5 syntax error; the quoted retry must succeed
+    assert run_json(["search", 'flux "capacitor']) == []

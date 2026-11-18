@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 from importlib.metadata import version
 import subprocess
 import time
@@ -222,7 +223,7 @@ def search_cmd(
 
     try:
         rows = run(query)
-    except Exception:
+    except sqlite3.OperationalError:
         quoted = " ".join('"' + t.replace('"', '""') + '"' for t in query.split())
         rows = run(quoted)
 
