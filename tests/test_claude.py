@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from better_traces.sources import claude
+from better_agent.sources import claude
 
 FIXTURE = Path(__file__).parent / "fixtures" / "claude_sample.jsonl"
 

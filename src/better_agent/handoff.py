@@ -1,4 +1,4 @@
-"""Deterministic context-pack rendering for `bt handoff` and `bt show`.
+"""Deterministic context-pack rendering for `bta handoff` and `bta show`.
 
 No LLM calls: the pack is a pure function over normalized session data, built
 around the "intent spine" (every user message, in order) — the user's own words

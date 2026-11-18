@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS imports (
 
 
 def default_db_path() -> Path:
-    home = Path(os.environ.get("BT_HOME", "~/.better-traces")).expanduser()
-    return home / "bt.db"
+    home = Path(os.environ.get("BTA_HOME", "~/.better-agent")).expanduser()
+    return home / "bta.db"
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
@@ -79,7 +79,7 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
 
 def session_id(source: str, source_id: str) -> str:
     h = hashlib.sha1(f"{source}:{source_id}".encode()).hexdigest()
-    return f"bt_{h[:8]}"
+    return f"bta_{h[:8]}"
 
 
 def message_id(source: str, source_message_id: str) -> str:
@@ -140,13 +140,13 @@ def insert_link(conn: sqlite3.Connection, a: str, b: str, type: str, note: str |
 
 
 def resolve_session(conn: sqlite3.Connection, prefix: str) -> sqlite3.Row | None:
-    """Resolve a full or partial bt_ id. Returns row, None if no match.
+    """Resolve a full or partial bta_ id. Returns row, None if no match.
 
     Raises ValueError(list of rows) on ambiguous prefix.
     """
     p = prefix.strip()
-    if not p.startswith("bt_"):
-        p = "bt_" + p
+    if not p.startswith("bta_"):
+        p = "bta_" + p
     row = conn.execute("SELECT * FROM sessions WHERE id=?", (p,)).fetchone()
     if row:
         return row

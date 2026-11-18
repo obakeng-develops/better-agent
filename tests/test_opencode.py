@@ -1,8 +1,8 @@
 import json
 import sqlite3
 
-from better_traces import db as dbm
-from better_traces.sources import opencode
+from better_agent import db as dbm
+from better_agent.sources import opencode
 
 
 def make_fake_opencode_db(path):
@@ -71,7 +71,7 @@ def test_import_sessions_messages_and_autolinks(tmp_path, monkeypatch):
     make_fake_opencode_db(fake)
     monkeypatch.setattr(opencode, "DB_PATH", fake)
 
-    conn = dbm.connect(tmp_path / "bt.db")
+    conn = dbm.connect(tmp_path / "bta.db")
     stats = opencode.do_import(conn)
 
     assert stats["sessions"] == 2
@@ -105,7 +105,7 @@ def test_import_is_incremental(tmp_path, monkeypatch):
     make_fake_opencode_db(fake)
     monkeypatch.setattr(opencode, "DB_PATH", fake)
 
-    conn = dbm.connect(tmp_path / "bt.db")
+    conn = dbm.connect(tmp_path / "bta.db")
     first = opencode.do_import(conn)
     second = opencode.do_import(conn)  # db mtime unchanged → early exit
     assert first["sessions"] == 2

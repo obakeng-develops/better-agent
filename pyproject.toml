@@ -1,5 +1,5 @@
 [project]
-name = "better-traces"
+name = "better-agent"
 version = "0.1.0"
 description = "Local-first, searchable, linkable history for coding-agent sessions"
 readme = "README.md"
@@ -10,14 +10,14 @@ dependencies = [
 ]
 
 [project.scripts]
-bt = "better_traces.cli:app"
+bta = "better_agent.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/better_traces"]
+packages = ["src/better_agent"]
 
 [dependency-groups]
 dev = ["pytest>=8"]
