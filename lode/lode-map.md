@@ -14,5 +14,6 @@
   - [summary.md](handoff/summary.md): intent spine, pack layout, output targets, handoff auto-links
   - [switch.md](handoff/switch.md): `bta switch`, which picks a session and launches the other agent with its pack
 - plans/
-  - [backlog.md](plans/backlog.md): known gaps, including the clig.dev audit
+  - [backlog.md](plans/backlog.md): known gaps (empty)
+  - [share.md](plans/share.md): shaped pitch, not built yet. `bta share` writes one HTML page of a session for teammates, with redaction.
 - tmp/: session scraps (git-ignored)
