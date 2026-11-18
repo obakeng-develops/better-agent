@@ -131,6 +131,7 @@ def render_handoff(
     full: bool = False,
     max_chars: int = 8000,
     activity: bool = True,
+    git: dict | None = None,
 ) -> str:
     spine = turns(messages)
     files = files_touched(messages)
@@ -171,6 +172,20 @@ def render_handoff(
             lines.append(f"- …and {len(files) - 20} more")
         lines.append("")
 
+    if git:
+        lines += ["## Git, at handoff", "", f"Branch: `{git['branch']}`", ""]
+        for label, rows in (("Uncommitted changes", git["changes"]),
+                            ("Commits since the session started", git["commits"])):
+            if not rows:
+                continue
+            lines.append(f"{label} ({len(rows)}):")
+            lines += [f"- `{r}`" for r in rows[:20]]
+            if len(rows) > 20:
+                lines.append(f"- …and {len(rows) - 20} more")
+            lines.append("")
+        if not git["changes"]:
+            lines += ["The working tree is clean.", ""]
+
     if last_text:
         lines += ["## Where things stand", "", _clip(last_text, 1500), ""]
 
@@ -179,7 +194,7 @@ def render_handoff(
 
     doc = "\n".join(lines).strip() + "\n"
     if len(doc) > max_chars and activity:  # drop activity before cutting the tail
-        return render_handoff(session, messages, linked, full, max_chars, activity=False)
+        return render_handoff(session, messages, linked, full, max_chars, activity=False, git=git)
     if len(doc) > max_chars:
         doc = doc[:max_chars].rstrip() + f"\n\n…[truncated to {max_chars} chars — raise --max-chars or use --full]\n"
     return doc

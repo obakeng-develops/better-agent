@@ -8,6 +8,9 @@
 - `files_touched(messages)`: unique `file_path` or `filePath` values from `tool_use` parts whose name, lowercased, is in `WRITE_TOOLS = {edit, write, multiedit, notebookedit}`.
 - `render_transcript(messages)`: role headings, text, and `> [tool: name] target` lines. It leaves thinking out on purpose.
 
+- `turns(messages)`: each spine message with the tool calls (counted by name) and shell commands the agent ran before the next one. Sidechains are left out. `activity_line` turns that into `Bash ×9 · Write ×2 · e.g. \`cmd\``.
+- `git_state(project, since_ms)` (`gitstate.py`): branch, `git status --porcelain`, and `git log --since` the session started. It's read live, so it catches edits made through Bash that `files_touched` can't see. It returns None outside a repo. It's the only part of building a pack that runs a command, which keeps `handoff.py` pure.
+
 ## Pack layout (`render_handoff`)
 
 ```markdown
@@ -17,12 +20,14 @@ Session: bta_… · start → end · N messages
 Related sessions: bta_… (type — note)
 ## Goal                      first spine message, ≤600 chars
 ## What was asked, in order  each spine message, ≤200 chars
+   → activity line           tool counts + first 2 commands
 ## Files touched             ≤20, then "…and N more"
+## Git, at handoff           branch, uncommitted (≤20), commits since start (≤20)
 ## Where things stand        last assistant text, ≤1500 chars
 ## Full transcript           only with --full
 ```
 
-The whole pack is truncated to `--max-chars` (default 8000) and ends with a marker saying so.
+When the pack is over `--max-chars` (default 8000), it first re-renders without the activity lines. Only then is it truncated, with a marker saying so.
 
 ## Output targets
 

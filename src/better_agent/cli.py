@@ -18,6 +18,7 @@ from rich.progress import Progress
 from rich.table import Table
 
 from . import db as dbm
+from .gitstate import git_state
 from .handoff import intent_spine, link_handoffs, render_handoff, render_transcript
 from .sources import claude, opencode
 
@@ -131,6 +132,16 @@ def session_to_dict(row) -> dict:
 
 def links_to_json(links) -> list[dict]:
     return [{"session": session_to_dict(o), "type": t, "note": n} for o, t, n in links]
+
+
+def build_pack(conn, s, max_chars: int, full: bool = False) -> str:
+    messages = conn.execute(
+        "SELECT * FROM messages WHERE session_id=? ORDER BY created_at, id", (s["id"],)
+    ).fetchall()
+    return render_handoff(
+        s, messages, linked_sessions(conn, s["id"]), full=full, max_chars=max_chars,
+        git=git_state(s["project"], s["created_at"]),
+    )
 
 
 def linked_sessions(conn, sid: str) -> list[tuple[object, str, str | None]]:
@@ -448,10 +459,7 @@ def handoff_cmd(
     """Render a paste-ready context pack for continuing this session elsewhere."""
     conn = dbm.connect()
     s = resolve_or_exit(conn, session_id)
-    messages = conn.execute(
-        "SELECT * FROM messages WHERE session_id=? ORDER BY created_at, id", (s["id"],)
-    ).fetchall()
-    doc = render_handoff(s, messages, linked_sessions(conn, s["id"]), full=full, max_chars=max_chars)
+    doc = build_pack(conn, s, max_chars, full=full)
 
     if copy:
         copy_to_clipboard(doc)
@@ -518,11 +526,7 @@ def switch_cmd(
         err.print(f"[red]{s['id']} has no project directory on this machine ({project or '?'})[/red]")
         raise typer.Exit(1)
 
-    messages = conn.execute(
-        "SELECT * FROM messages WHERE session_id=? ORDER BY created_at, id", (s["id"],)
-    ).fetchall()
-    pack = render_handoff(s, messages, linked_sessions(conn, s["id"]), max_chars=max_chars)
-    pack += SWITCH_FOOTER
+    pack = build_pack(conn, s, max_chars) + SWITCH_FOOTER
     argv = agent_argv(agent, pack, project)
     shown = shlex.join(a if a != pack else "<pack>" for a in argv)
 
