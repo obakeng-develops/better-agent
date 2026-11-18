@@ -10,7 +10,7 @@
 
 ## Adding a source
 
-Add a module under `src/better_agent/sources/` that exposes `do_import(conn, force, progress) -> dict`. Call `progress(done, total)` before each unit of work and once more at the end, so `bta import` can draw its progress bar. It normalizes to `SourceSession` and `SourceMessage` (`models.py`), then calls `dbm.upsert_session` and `dbm.replace_messages`. Add it to the `(name, module)` loop in `import_cmd` in `cli.py`. Normalize parts to the shared types so the handoff and transcript code keep working unchanged.
+Add a module under `src/better_agent/sources/` that exposes `do_import(conn, force, progress) -> dict`. Call `progress(done, total)` before each unit of work and once more at the end, so `bta import` can draw its progress bar. It normalizes to `SourceSession` and `SourceMessage` (`models.py`), then calls `dbm.upsert_session` and `dbm.replace_messages`. Add it to the `(name, module)` loop in `run_import` and its name to `norm_source` in `cli.py`. For `switch` and `resume`, also add its launch command to `agent_argv` and `resume_argv`, and its display name to `AGENT_NAMES`. Normalize parts to the shared types so the handoff and transcript code keep working unchanged.
 
 ```python
 sid = dbm.upsert_session(conn, session)
