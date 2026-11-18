@@ -19,15 +19,23 @@ To uninstall, run `uv tool uninstall better-agent`. To delete the index too, run
 ## Switch agents
 
 ```sh
-bta switch opencode            # continue this directory's latest Claude Code session in OpenCode
+bta switch opencode            # pick a Claude Code session here, preview it, continue in OpenCode
 bta switch claude              # and back again
-bta switch claude --from a1b2 --dry-run   # show the pack and command without running them
+bta switch opencode --yes      # skip the picker and preview, continue the latest session
+bta switch claude --from a1b2 --dry-run   # print the pack and command without running them
 ```
 
-`switch` imports, renders the session's handoff pack, and starts the other agent in the
-session's project directory with the pack as its first message. Claude Code sends it right
+`switch` imports, then lists this directory's recent sessions from the other agent. After you
+pick one, it previews your requests with what the agent did for each, the live git state, and
+the exact command, then asks before it starts the other agent in the session's project
+directory with the pack as its first message. Claude Code sends it right
 away. OpenCode 2.0 puts it in the input box, so you press Enter. The next `bta import`
 links the new session to the old one as a `handoff`.
+
+The pack is a summary: your requests and the agent's activity under each, files touched, live
+git state (branch, uncommitted changes, commits since the session started), and the agent's last
+reply. Its header tells the new agent how to pull the full history with `bta show ID --json`, so
+`bta` needs to be on your PATH.
 
 ## Usage
 
@@ -53,7 +61,7 @@ Run `bta -h` or `bta <command> -h` for every flag and example, and `bta --versio
 - Every command except `switch` takes `--json`, and its shape stays stable between versions. `switch` hands your terminal to another program, so use `switch --dry-run` to script it.
 - Results go to stdout. Errors, confirmations, and notes such as `no matches` go to stderr.
 - `bta` exits 0 on success, 1 on a failure such as an unknown session id, and 2 on a usage error.
-- Without a terminal, `unlink` exits 1 unless you pass `--force`.
+- Without a terminal, `unlink` exits 1 unless you pass `--force`, and `switch` exits 1 unless you pass `--yes` or `--dry-run`.
 
 ## Design
 

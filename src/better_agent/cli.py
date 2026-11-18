@@ -14,12 +14,15 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.progress import Progress
 from rich.table import Table
 
 from . import db as dbm
 from .gitstate import git_state
-from .handoff import intent_spine, link_handoffs, render_handoff, render_transcript
+from .handoff import (
+    activity_line, intent_spine, link_handoffs, render_handoff, render_transcript, turns,
+)
 from .sources import claude, opencode
 
 def examples(*lines: str) -> str:
@@ -115,6 +118,10 @@ def copy_to_clipboard(text: str) -> None:
     names = ", ".join(a[0] for a in CLIPBOARD_TOOLS)
     err.print(f"[red]no clipboard tool found ({names}) — pipe the output instead[/red]")
     raise typer.Exit(1)
+
+
+def stdin_is_terminal() -> bool:
+    return sys.stdin.isatty()
 
 
 def print_text(text: str) -> None:
@@ -430,7 +437,7 @@ def unlink_cmd(
         "SELECT type FROM links WHERE (a=? AND b=?) OR (a=? AND b=?)", pair
     )]
     if types and not force:
-        if not sys.stdin.isatty():
+        if not stdin_is_terminal():
             err.print("[red]unlink needs confirmation — pass --force to remove without asking[/red]")
             raise typer.Exit(1)
         typer.confirm(
@@ -477,8 +484,9 @@ SWITCH_FOOTER = (
 )
 
 
-def latest_session_in(conn, directory: str, exclude_source: str):
-    """Most recent session started in this directory by another tool."""
+def sessions_in(conn, directory: str, exclude_source: str, limit: int = 9) -> list:
+    """Most recent sessions started in this directory by another tool, newest first."""
+    found = []
     for row in conn.execute(
         """SELECT * FROM sessions WHERE lower(project) = lower(?) AND source != ?
            ORDER BY updated_at DESC""",
@@ -486,10 +494,12 @@ def latest_session_in(conn, directory: str, exclude_source: str):
     ):
         try:
             if os.path.samefile(row["project"], directory):  # lower() is only a prefilter
-                return row
+                found.append(row)
         except OSError:
             continue
-    return None
+        if len(found) == limit:
+            break
+    return found
 
 
 def agent_argv(agent: str, pack: str, project: str) -> list[str]:
@@ -498,32 +508,89 @@ def agent_argv(agent: str, pack: str, project: str) -> list[str]:
     return ["opencode", "--prompt", pack, project]
 
 
+AGENT_NAMES = {"claude-code": "Claude Code", "opencode": "OpenCode"}
+
+
+def pick_session(candidates: list):
+    err.print(f"[bold]Sessions in {escape(os.getcwd())}[/bold]\n")
+    for i, r in enumerate(candidates, 1):
+        err.print(f"  {i}  [cyan]{r['id']}[/cyan]  {r['source']}  [dim]{rel_time(r['updated_at'])} · "
+                  f"{r['message_count']} msgs[/dim]  {escape((r['title'] or '')[:60])}")
+    err.print()
+    while True:
+        n = typer.prompt("Pick a session", default=1, type=int, err=True)
+        if 1 <= n <= len(candidates):
+            return candidates[n - 1]
+        err.print(f"[red]pick a number from 1 to {len(candidates)}[/red]")
+
+
+def preview_switch(conn, s, pack: str, shown: str, recent: int = 10) -> None:
+    """What's about to happen: the session's requests and activity, git state, and the command."""
+    messages = conn.execute(
+        "SELECT * FROM messages WHERE session_id=? ORDER BY created_at, id", (s["id"],)
+    ).fetchall()
+    head = f"{s['id']} · {s['source']}" + (f" ({s['model']})" if s["model"] else "")
+    head += f" · {s['message_count']} msgs · {rel_time(s['updated_at'])}"  # live branch is on the Git line
+    err.print(f"\n[bold]{escape(s['title'] or '')}[/bold]\n[dim]{escape(head)}[/dim]")
+    err.rule(style="dim")
+
+    session_turns = turns(messages)
+    if len(session_turns) > recent:
+        err.print(f"[dim]  … {len(session_turns) - recent} earlier requests[/dim]")
+    for i, (m, tools, commands) in enumerate(session_turns, 1):
+        if i <= len(session_turns) - recent:
+            continue
+        text = " ".join(" ".join(
+            p.get("text", "") for p in json.loads(m["parts"]) if p.get("type") == "text"
+        ).split())
+        err.print(f"{i:>4}  {escape(text[:70])}" + ("…" if len(text) > 70 else ""))
+        did = activity_line(tools, commands, examples=0)
+        if did:
+            err.print(f"      [dim]└ {escape(did)}[/dim]")
+
+    git = git_state(s["project"], s["created_at"])
+    if git:
+        err.print(f"\n[bold]Git[/bold]  {escape(git['branch'])} · {len(git['changes'])} uncommitted · "
+                  f"{len(git['commits'])} commits since the session started")
+    err.print(f"[bold]Pack[/bold] {len(pack) / 1000:.1f}k chars → {escape(shown)}")
+    err.print(f"[bold]In[/bold]   {escape(s['project'])}\n")
+
+
 @app.command("switch", epilog=examples(
     "bta switch opencode",
-    "bta switch claude --from a1b2 --dry-run",
+    "bta switch claude --from a1b2 --yes",
+    "bta switch opencode --dry-run",
 ))
 def switch_cmd(
     agent: str = typer.Argument(..., callback=norm_source, help="claude | opencode"),
-    from_: str = typer.Option(None, "--from", help="Session to continue. Default: the most "
-                              "recent session in this directory from the other agent."),
+    from_: str = typer.Option(None, "--from", help="Session to continue. Default: pick from "
+                              "this directory's recent sessions from the other agent."),
     max_chars: int = typer.Option(8000, "--max-chars"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the picker and preview: continue "
+                             "the latest session (or --from) straight away."),
     dry_run: bool = typer.Option(False, "--dry-run", "-n",
                                  help="Print the pack and the command instead of running it."),
 ):
-    """Continue a session in another agent: import, render the pack, and start the agent with it."""
+    """Continue a session in another agent: pick it, preview it, then start the agent with its pack."""
+    interactive = not (yes or dry_run)
+    if interactive and not stdin_is_terminal():
+        err.print("[red]switch asks before launching — pass --yes, or --dry-run to preview[/red]")
+        raise typer.Exit(1)
+
     conn = dbm.connect()
     run_import(conn)
     if from_:
         s = resolve_or_exit(conn, from_)
     else:
-        s = latest_session_in(conn, os.getcwd(), exclude_source=agent)
-        if s is None:
-            err.print(f"[red]no session in {os.getcwd()} from another agent — "
+        candidates = sessions_in(conn, os.getcwd(), exclude_source=agent)
+        if not candidates:
+            err.print(f"[red]no session in {escape(os.getcwd())} from another agent — "
                       "pass --from SESSION[/red]")
             raise typer.Exit(1)
+        s = pick_session(candidates) if interactive and len(candidates) > 1 else candidates[0]
     project = s["project"]
     if not project or not os.path.isdir(project):
-        err.print(f"[red]{s['id']} has no project directory on this machine ({project or '?'})[/red]")
+        err.print(f"[red]{s['id']} has no project directory on this machine ({escape(project or '?')})[/red]")
         raise typer.Exit(1)
 
     pack = build_pack(conn, s, max_chars) + SWITCH_FOOTER
@@ -537,6 +604,9 @@ def switch_cmd(
     if shutil.which(argv[0]) is None:
         err.print(f"[red]{argv[0]} isn't on your PATH[/red]")
         raise typer.Exit(1)
+    if interactive:
+        preview_switch(conn, s, pack, shown)
+        typer.confirm(f"Continue in {AGENT_NAMES[agent]}?", default=True, abort=True, err=True)
     hint = " (press Enter there to send the pack)" if agent == "opencode" else ""
     err.print(f"continuing {s['id']} ({s['source']}) in {argv[0]}{hint}…",
               markup=False, highlight=False)

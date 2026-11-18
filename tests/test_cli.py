@@ -180,7 +180,7 @@ def test_switch_execs_the_agent_in_the_project_directory(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "execvp", lambda file, argv: calls.update(file=file, argv=argv))
     monkeypatch.chdir("/")
 
-    result = runner.invoke(app, ["switch", "claude", "--from", ids["opencode"]])
+    result = runner.invoke(app, ["switch", "claude", "--from", ids["opencode"], "--yes"])
     assert result.exit_code == 0, result.output
     assert calls["file"] == "claude"
     assert calls["argv"][1].startswith("# Context handoff: newest-overall")
@@ -191,7 +191,7 @@ def test_switch_without_a_session_here_says_how_to_pick_one(tmp_path, monkeypatc
     switch_setup(tmp_path, monkeypatch)
     (tmp_path / "empty").mkdir()
     monkeypatch.chdir(tmp_path / "empty")
-    result = runner.invoke(app, ["switch", "opencode"])
+    result = runner.invoke(app, ["switch", "opencode", "--yes"])
     assert result.exit_code == 1 and "--from" in result.stderr
 
 
@@ -213,3 +213,32 @@ def test_copy_uses_the_first_clipboard_tool_on_path(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda name: None)
     with pytest.raises(typer.Exit):
         cli.copy_to_clipboard("pack")
+
+
+def test_switch_needs_yes_without_a_terminal(tmp_path, monkeypatch):
+    switch_setup(tmp_path, monkeypatch)
+    result = runner.invoke(app, ["switch", "opencode"])
+    assert result.exit_code == 1 and "--yes" in result.stderr
+
+
+def test_switch_picker_preview_and_confirm(tmp_path, monkeypatch):
+    import os
+    import shutil
+
+    from better_agent import cli
+
+    ids = switch_setup(tmp_path, monkeypatch)
+    calls = {}
+    monkeypatch.setattr(cli, "stdin_is_terminal", lambda: True)
+    monkeypatch.setattr(shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(os, "execvp", lambda file, argv: calls.update(argv=argv))
+
+    # two Claude Code sessions here; pick the second (older) one, then decline
+    result = runner.invoke(app, ["switch", "opencode"], input="2\nn\n")
+    assert result.exit_code == 1 and not calls
+    assert ids["claude"] in result.stderr and ids["older_claude"] in result.stderr
+    assert "Pack" in result.stderr and "Continue in OpenCode?" in result.stderr
+
+    result = runner.invoke(app, ["switch", "opencode"], input="2\ny\n")
+    assert result.exit_code == 0, result.output
+    assert f"Session: {ids['older_claude']} " in calls["argv"][2]

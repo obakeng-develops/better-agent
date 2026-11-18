@@ -1,23 +1,38 @@
 # Switching agents
 
-`bta switch <claude|opencode>` continues a session in the other agent. It imports, picks the session, renders the pack, and replaces itself with the target agent (`os.execvp`). The agent starts in the session's project directory with the pack as its first message.
+`bta switch <claude|opencode>` continues a session in the other agent. It imports, lets you pick the session, previews what will happen, asks, then replaces itself with the target agent (`os.execvp`). The agent starts in the session's project directory with the pack as its first message.
 
 ```mermaid
 flowchart LR
   S[bta switch AGENT] --> I[run_import: incremental, ~0.7s]
   I --> P{--from?}
   P -- yes --> R[resolve_or_exit]
-  P -- no --> L[latest_session_in cwd, source != AGENT]
-  R --> K[render_handoff + SWITCH_FOOTER]
-  L --> K
-  K --> D{--dry-run?}
-  D -- yes --> O[pack to stdout, command to stderr]
-  D -- no --> X[chdir project, execvp agent]
+  P -- no --> L[sessions_in cwd, source != AGENT]
+  L --> PK{interactive and >1?}
+  PK -- yes --> PICK[pick_session]
+  PK -- no --> LATEST[newest]
+  R --> K[build_pack + SWITCH_FOOTER]
+  PICK --> K
+  LATEST --> K
+  K --> D{mode}
+  D -- --dry-run --> O[pack to stdout, command to stderr]
+  D -- --yes --> X[chdir project, execvp agent]
+  D -- default --> PV[preview_switch, confirm Y/n] --> X
 ```
+
+## Modes
+
+| Mode | Picker | Preview and confirm | Needs a TTY |
+|---|---|---|---|
+| default | when more than one session matches | yes, on stderr | yes. Without one it exits 1 and suggests `--yes` or `--dry-run`. |
+| `-y`, `--yes` | no, takes the newest | no | no |
+| `-n`, `--dry-run` | no, takes the newest | no. It prints the pack and command instead. | no |
+
+The preview shows the session header, the last 10 requests with an `activity_line` under each (counts only, no commands), the live git summary, the pack size, the exact command, and the directory. `stdin_is_terminal()` is the single TTY check, so tests can stub it.
 
 ## Session choice
 
-Without `--from`, it picks the most recent session whose `project` is the current directory and whose source isn't the target. You switch away from one agent, so `bta switch opencode` never picks an OpenCode session. Paths are prefiltered with `lower()` and confirmed with `os.path.samefile`, because macOS paths are case-insensitive (`~/Desktop` and `~/desktop` are the same folder).
+Without `--from`, the candidates are up to 9 recent sessions whose `project` is the current directory and whose source isn't the target, newest first. You switch away from one agent, so `bta switch opencode` never offers an OpenCode session. Paths are prefiltered with `lower()` and confirmed with `os.path.samefile`, because macOS paths are case-insensitive (`~/Desktop` and `~/desktop` are the same folder).
 
 ## Launch commands
 

@@ -36,6 +36,7 @@ The returned dict carries `source`, `sessions`, `messages`, and `skipped`, plus 
 - Use the same flag names and output formats across subcommands. Any command with output worth scripting takes `--json`, and `--json` output stays stable.
 - Changes are additive. Don't rename or repurpose a flag; add a new one.
 - Bail out on bad input before any side effects.
+- Commands that hand off the terminal or delete things confirm first. `switch` previews and asks, and `-y/--yes` skips it. `-y` is for "I've seen this, go". `-f/--force` is for overriding a safety check on destructive commands.
 - Destructive commands confirm first. `unlink` prompts on stderr, listing the link types it will remove, only when stdin is a TTY. Without a TTY it exits 1 and says to pass `-f/--force`. Nothing is asked when there's nothing to remove.
 - Color is left to rich, which respects `NO_COLOR` and non-TTY output.
 - Every command's help ends with 1 or 2 runnable examples, `@app.command(..., epilog=examples(...))`. A new command needs them too; a test checks it.
