@@ -1,10 +1,10 @@
 # better-agent
 
-`bta` keeps the history of your Claude Code and OpenCode sessions in one local database and moves a session from one agent to the other.
+`bta` keeps the history of your coding-agent sessions in one local database and moves a session from one agent to another. It supports Claude Code and OpenCode so far, and you can [add another agent](#adding-another-agent).
 
 Each agent keeps its history in its own place and its own format. When you want to carry on a Claude Code session in OpenCode, you end up explaining the work again, and finding what you did last week means searching two places.
 
-`bta` imports both into one SQLite database on your machine, makes every message full-text searchable and builds a summary of a session that you can hand to the other agent. It doesn't send anything anywhere and it doesn't call an LLM.
+`bta` imports them into one SQLite database on your machine, makes every message full-text searchable and builds a summary of a session that you can hand to the other agent. It doesn't send anything anywhere and it doesn't call an LLM.
 
 ## Installing bta
 
