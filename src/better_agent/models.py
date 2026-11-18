@@ -18,7 +18,6 @@ class SourceSession:
     tokens_in: int | None = None
     tokens_out: int | None = None
     raw_meta: dict = field(default_factory=dict)
-    auto_links: list[tuple[str, str]] = field(default_factory=list)  # (target source_id, link type)
 
 
 @dataclass
