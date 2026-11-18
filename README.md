@@ -83,7 +83,7 @@ Run `bta -h` or `bta <command> -h` for every flag with examples, and `bta --vers
 | Claude Code | `~/.claude/projects/*/*.jsonl`, only the `user`, `assistant` and `summary` events |
 | OpenCode | `~/.local/share/opencode/opencode.db`, opened read-only |
 
-The index is a SQLite database with FTS5 in `$XDG_DATA_HOME/better-agent`, which defaults to `~/.local/share/better-agent`. Set `BTA_HOME` to keep it somewhere else. Versions before 0.5 used `~/.better-agent`, and `bta` moves that index over the first time it runs.
+The index is a SQLite database with FTS5 in `$XDG_DATA_HOME/better-agent`, which defaults to `~/.local/share/better-agent`. Set `BTA_HOME` to keep it somewhere else.
 
 A session's id is a hash of the agent and the agent's own session id. Importing again updates the session instead of adding a copy. Packs come from the imported messages and the live git state, without an LLM.
 

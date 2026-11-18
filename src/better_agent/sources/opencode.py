@@ -17,18 +17,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 from .. import db as dbm
+from . import tool_target
 from ..models import SourceMessage, SourceSession
 
 DB_PATH = Path("~/.local/share/opencode/opencode.db").expanduser()
 
 TOOL_OUTPUT_MAX = 2000
 TOOL_OUTPUT_FTS = 500
-
-
-def _tool_target(inp: dict) -> str:
-    return str(
-        inp.get("filePath") or inp.get("file_path") or inp.get("command") or inp.get("pattern") or ""
-    )[:200]
 
 
 def _normalize_part(data: dict) -> tuple[dict | None, str]:
@@ -51,7 +46,7 @@ def _normalize_part(data: dict) -> tuple[dict | None, str]:
             "output": out[:TOOL_OUTPUT_MAX],
             "status": state.get("status"),
         }
-        fts = f"[tool: {data.get('tool')}] {_tool_target(inp)}\n{out[:TOOL_OUTPUT_FTS]}"
+        fts = f"[tool: {data.get('tool')}] {tool_target(inp)}\n{out[:TOOL_OUTPUT_FTS]}"
         return part, fts
     return None, ""  # step-start / step-finish / patch / file / compaction
 

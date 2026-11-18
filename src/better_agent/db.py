@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import sqlite3
-import sys
 import time
 from pathlib import Path
 
@@ -64,9 +63,6 @@ CREATE TABLE IF NOT EXISTS imports (
 """
 
 
-LEGACY_DB = Path("~/.better-agent/bta.db")
-
-
 def default_db_path() -> Path:
     if os.environ.get("BTA_HOME"):
         return Path(os.environ["BTA_HOME"]).expanduser() / "bta.db"
@@ -74,24 +70,8 @@ def default_db_path() -> Path:
     return Path(data_home).expanduser() / "better-agent" / "bta.db"
 
 
-def move_legacy_db(target: Path) -> None:
-    """Move a pre-0.5 index from ~/.better-agent to the XDG location, once."""
-    legacy = LEGACY_DB.expanduser()
-    if target.exists() or not legacy.exists():
-        return
-    target.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(legacy, target)
-    try:
-        legacy.parent.rmdir()
-    except OSError:
-        pass  # something else lives there; leave it
-    print(f"moved your index from {legacy} to {target}", file=sys.stderr)
-
-
 def connect(path: Path | None = None) -> sqlite3.Connection:
     p = path or default_db_path()
-    if path is None and not os.environ.get("BTA_HOME"):
-        move_legacy_db(p)
     p.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(p)
     conn.row_factory = sqlite3.Row
