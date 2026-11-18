@@ -87,3 +87,11 @@ def test_search_retries_fts_syntax_errors_as_quoted_terms(tmp_path, monkeypatch)
     seed_two_sessions(tmp_path, monkeypatch)
     # an unbalanced quote is an FTS5 syntax error; the quoted retry must succeed
     assert run_json(["search", 'flux "capacitor']) == []
+
+
+def test_status_messages_go_to_stderr(tmp_path, monkeypatch):
+    a, b = seed_two_sessions(tmp_path, monkeypatch)
+    for args in (["link", a, b], ["unlink", a, b], ["links", a], ["search", "zzz"]):
+        result = runner.invoke(app, args)
+        assert result.exit_code == 0, args
+        assert result.stdout == "" and result.stderr, args

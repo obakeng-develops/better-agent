@@ -30,7 +30,7 @@ The returned dict carries `source`, `sessions`, `messages`, and `skipped`, plus 
 
 [clig.dev](https://clig.dev/) is the working guide for every command and flag. The rules that come up most:
 
-- Primary output goes to stdout. Errors and status messages go to stderr (`err` console in `cli.py`).
+- Primary output goes to stdout. Errors, confirmations, and empty-result notes go to stderr (`err` console in `cli.py`), so `bta links X | wc -l` counts only real results. `import`'s summary counts are its result, so they stay on stdout.
 - Exit 0 on success and non-zero on failure. Typer exits 2 on usage errors, and `resolve_or_exit` exits 1.
 - Every flag has a long form. Short flags are reserved for common options and keep clig's standard meanings, for example `-n` for `--dry-run` and `-f` for `--force`.
 - Use the same flag names and output formats across subcommands. Any command with output worth scripting takes `--json`, and `--json` output stays stable.

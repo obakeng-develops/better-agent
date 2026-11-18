@@ -231,7 +231,7 @@ def search_cmd(
         print_json([dict(r) for r in rows])
         return
     if not rows:
-        console.print("[dim]no matches[/dim]")
+        err.print("[dim]no matches[/dim]")
         return
     for r in rows:
         console.print(
@@ -316,9 +316,9 @@ def link_cmd(
         print_json({"a": sa["id"], "b": sb["id"], "type": type, "note": note, "created": created})
         return
     if created:
-        console.print(f"✓ {sa['id']} ⚭ {sb['id']}  [dim]({type}{' — ' + note if note else ''})[/dim]")
+        err.print(f"✓ {sa['id']} ⚭ {sb['id']}  [dim]({type}{' — ' + note if note else ''})[/dim]")
     else:
-        console.print("[dim]link already exists[/dim]")
+        err.print("[dim]link already exists[/dim]")
 
 
 @app.command("links")
@@ -334,7 +334,7 @@ def links_cmd(
         print_json(links_to_json(links))
         return
     if not links:
-        console.print("[dim]no links[/dim]")
+        err.print("[dim]no links[/dim]")
         return
     for other, ltype, note in links:
         console.print(
@@ -360,7 +360,7 @@ def unlink_cmd(
     if as_json:
         print_json({"a": sa["id"], "b": sb["id"], "removed": cur.rowcount})
         return
-    console.print(f"removed {cur.rowcount} link(s)")
+    err.print(f"removed {cur.rowcount} link(s)")
 
 
 @app.command("handoff")
@@ -384,6 +384,6 @@ def handoff_cmd(
     if as_json:
         print_json({"session": s["id"], "pack": doc, "copied": copy})
     elif copy:
-        console.print(f"✓ copied {len(doc):,} chars — paste it into your other agent")
+        err.print(f"✓ copied {len(doc):,} chars — paste it into your other agent")
     else:
         console.print(doc, markup=False, highlight=False)
