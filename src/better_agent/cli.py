@@ -21,7 +21,7 @@ from rich.table import Table
 from . import db as dbm
 from .gitstate import git_state
 from .handoff import (
-    activity_line, intent_spine, link_handoffs, render_handoff, render_transcript, turns,
+    activity_line, intent_spine, link_handoffs, render_handoff, render_transcript, text_of, turns,
 )
 from .sources import claude, opencode
 
@@ -361,9 +361,7 @@ def show_cmd(
     spine = intent_spine(messages)
     console.print(f"\n[bold]Intent spine[/bold] ({len(spine)} messages)")
     for i, m in enumerate(spine, 1):
-        text = " ".join(
-            p.get("text", "") for p in json.loads(m["parts"]) if p.get("type") == "text"
-        ).split()
+        text = text_of(m).split()
         console.print(f"{i:>3}. [dim]{rel_time(m['created_at'])}[/dim] {' '.join(text)[:140]}")
 
 
@@ -556,9 +554,7 @@ def preview_switch(conn, s, pack: str, shown: str, recent: int = 10) -> None:
     for i, (m, tools, commands) in enumerate(session_turns, 1):
         if i <= len(session_turns) - recent:
             continue
-        text = " ".join(" ".join(
-            p.get("text", "") for p in json.loads(m["parts"]) if p.get("type") == "text"
-        ).split())
+        text = " ".join(text_of(m).split())
         err.print(f"{i:>4}  {escape(text[:70])}" + ("…" if len(text) > 70 else ""))
         did = activity_line(tools, commands, examples=0)
         if did:

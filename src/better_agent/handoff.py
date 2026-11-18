@@ -24,7 +24,7 @@ def _parts(message: sqlite3.Row) -> list[dict]:
     return json.loads(message["parts"])
 
 
-def _text_of(message: sqlite3.Row) -> str:
+def text_of(message: sqlite3.Row) -> str:
     return "\n".join(
         p.get("text", "") for p in _parts(message) if p.get("type") == "text"
     ).strip()
@@ -34,7 +34,7 @@ def intent_spine(messages: list[sqlite3.Row]) -> list[sqlite3.Row]:
     """User messages that carry actual intent (not tool results or sidechains)."""
     return [
         m for m in messages
-        if m["role"] == "user" and not m["is_sidechain"] and _text_of(m)
+        if m["role"] == "user" and not m["is_sidechain"] and text_of(m)
     ]
 
 
@@ -63,7 +63,7 @@ def turns(messages: list[sqlite3.Row]) -> list[tuple[sqlite3.Row, Counter, list[
     for m in messages:
         if m["is_sidechain"]:
             continue
-        if m["role"] == "user" and _text_of(m):
+        if m["role"] == "user" and text_of(m):
             out.append((m, Counter(), []))
         elif m["role"] == "assistant" and out:
             for p in _parts(m):
@@ -90,7 +90,7 @@ def activity_line(tools: Counter, commands: list[str], examples: int = 2) -> str
 def _last_assistant_text(messages: list[sqlite3.Row]) -> str | None:
     for m in reversed(messages):
         if m["role"] == "assistant":
-            text = _text_of(m)
+            text = text_of(m)
             if text:
                 return text
     return None
@@ -159,10 +159,10 @@ def render_handoff(
     lines.append("")
 
     if spine:
-        lines += ["## Goal", "", _clip(_text_of(spine[0][0]), 600), ""]
+        lines += ["## Goal", "", _clip(text_of(spine[0][0]), 600), ""]
         lines += ["## What was asked, in order", ""]
         for i, (m, tools, commands) in enumerate(spine, 1):
-            lines.append(f"{i}. {_clip(' '.join(_text_of(m).split()), 200)}")
+            lines.append(f"{i}. {_clip(' '.join(text_of(m).split()), 200)}")
             did = activity_line(tools, commands) if activity else ""
             if did:
                 lines.append(f"   → {did}")
