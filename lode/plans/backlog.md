@@ -2,7 +2,24 @@
 
 Known gaps between the code, the README, and conventions. Nothing here is decided yet.
 
-- **README overstates `--json`.** It says every command takes `--json`, but only `list`, `search`, and `show` do.
+## Against clig.dev
+
+See [../practices.md](../practices.md#cli-design).
+
+- **No `-h` or `--version`.** Only `--help` works. Fix with `context_settings={"help_option_names": ["-h", "--help"]}` and a version callback.
+- **`-n` means two things,** and neither is `--dry-run`. It's `--limit` on `list` and `search`, and `--note` on `link`.
+- **`--json` is inconsistent.** Only `list`, `search`, and `show` take it, not `import`, `links`, `link`, `unlink`, or `handoff`.
+- **`--source` checking differs by command.** `import` rejects `claude-code`, which `list` and `search` accept.
+- **`search` catches every exception** when it falls back to quoting the query. A real database error turns into a second, confusing query. Catch `sqlite3.OperationalError` only.
+- **Status messages go to stdout.** For example `✓ copied …` and `removed N link(s)`. clig.dev sends them to stderr.
+- **`import` shows no progress** while parsing files. Only the FTS rebuild has a spinner, so a large first import looks stuck.
+- **No examples in help text,** except on `link`.
+- **The data folder ignores XDG.** It's `~/.better-agent` rather than `$XDG_DATA_HOME/better-agent`. Changing it is a breaking move, so pair it with a migration note.
+- **`unlink` deletes without confirming.** Links made by hand can't be rebuilt from sources.
+
+## Other
+
+- **README overstates `--json`.** It says every command takes `--json`.
 - **The README doesn't mention** `unlink` or `--max-chars`.
 - **Reversed duplicate links.** `(a, b, type)` and `(b, a, type)` can both exist. See [../index/summary.md](../index/summary.md).
 - **`--copy` works on macOS only** (`pbcopy`).

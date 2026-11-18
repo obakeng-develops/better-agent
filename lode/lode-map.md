@@ -2,7 +2,7 @@
 
 - [summary.md](summary.md): what better-agent is, with a data-flow diagram
 - [terminology.md](terminology.md): domain terms
-- [practices.md](practices.md): invariants, adding a source, testing, dependencies
+- [practices.md](practices.md): invariants, adding a source, testing, CLI design (clig.dev), dependencies
 - index/
   - [summary.md](index/summary.md): bta.db schema, FTS, links, search fallback
   - [ids.md](index/ids.md): session and message id derivation, prefix resolution
@@ -13,5 +13,5 @@
 - handoff/
   - [summary.md](handoff/summary.md): intent spine, pack layout, output targets
 - plans/
-  - [backlog.md](plans/backlog.md): known gaps, not yet decided
+  - [backlog.md](plans/backlog.md): known gaps, including the clig.dev audit
 - tmp/: session scraps (git-ignored)
