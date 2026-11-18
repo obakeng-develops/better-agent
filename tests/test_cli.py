@@ -115,3 +115,20 @@ def test_unlink_refuses_without_confirmation_when_not_interactive(tmp_path, monk
 def test_unlink_with_no_links_needs_no_confirmation(tmp_path, monkeypatch):
     a, b = seed_two_sessions(tmp_path, monkeypatch)
     assert run_json(["unlink", a, b])["removed"] == 0
+
+
+def test_packs_and_transcripts_print_verbatim(tmp_path, monkeypatch):
+    from better_agent import db as dbm
+    from better_agent.models import SourceMessage
+
+    a, _ = seed_two_sessions(tmp_path, monkeypatch)
+    conn = dbm.connect(tmp_path / "bta.db")
+    long_line = "word " * 40 + "[bold]not markup[/bold]"
+    dbm.replace_messages(conn, a, "claude-code", [SourceMessage(
+        id="m1", role="user", parent_id=None, is_sidechain=False, model=None, created_at=1500,
+        parts=[{"type": "text", "text": long_line}], text=long_line,
+    )])
+    conn.commit()
+
+    assert long_line.strip() in runner.invoke(app, ["show", a, "--full"]).stdout
+    assert "[bold]not markup[/bold]" in runner.invoke(app, ["handoff", a, "--max-chars", "99999"]).stdout

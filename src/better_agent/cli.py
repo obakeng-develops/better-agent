@@ -94,6 +94,11 @@ def resolve_or_exit(conn, prefix: str):
     return row
 
 
+def print_text(text: str) -> None:
+    """Print text as-is: no markup, no highlighting, no wrapping at the terminal width."""
+    console.print(text, markup=False, highlight=False, soft_wrap=True)
+
+
 def print_json(obj) -> None:
     console.print_json(json.dumps(obj, default=str))
 
@@ -309,7 +314,7 @@ def show_cmd(
                           + (f" — {note}" if note else "") + "[/dim]")
 
     if full:
-        console.print(render_transcript(messages))
+        print_text(render_transcript(messages))
         return
 
     spine = intent_spine(messages)
@@ -428,4 +433,4 @@ def handoff_cmd(
     elif copy:
         err.print(f"✓ copied {len(doc):,} chars — paste it into your other agent")
     else:
-        console.print(doc, markup=False, highlight=False)
+        print_text(doc)
