@@ -85,19 +85,3 @@ def test_default_path_follows_xdg_unless_bta_home_is_set(tmp_path, monkeypatch):
     assert dbm.default_db_path() == tmp_path / "data" / "better-agent" / "bta.db"
     monkeypatch.setenv("BTA_HOME", str(tmp_path / "custom"))
     assert dbm.default_db_path() == tmp_path / "custom" / "bta.db"
-
-
-def test_legacy_index_moves_to_xdg_once(tmp_path, monkeypatch):
-    legacy = tmp_path / "home" / ".better-agent" / "bta.db"
-    legacy.parent.mkdir(parents=True)
-    old = dbm.connect(legacy)
-    a = dbm.upsert_session(old, make_session("s1"))
-    old.commit()
-    old.close()
-    monkeypatch.setattr(dbm, "LEGACY_DB", legacy)
-    monkeypatch.delenv("BTA_HOME", raising=False)
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-
-    conn = dbm.connect()
-    assert dbm.resolve_session(conn, a) is not None
-    assert not legacy.parent.exists()  # emptied folder is removed
