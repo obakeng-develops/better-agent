@@ -484,16 +484,20 @@ SWITCH_FOOTER = (
 )
 
 
-def sessions_in(conn, directory: str, exclude_source: str, limit: int = 9) -> list:
-    """Most recent sessions started in this directory by another tool, newest first."""
+def sessions_in(conn, directory: str, exclude_source: str | None = None, limit: int = 9) -> list:
+    """Most recent sessions started in this directory or below it, newest first."""
     found = []
     for row in conn.execute(
-        """SELECT * FROM sessions WHERE lower(project) = lower(?) AND source != ?
+        """SELECT * FROM sessions
+           WHERE (lower(project) = lower(?) OR lower(project) LIKE lower(?) || '/%')
+             AND source IS NOT ?
            ORDER BY updated_at DESC""",
-        (directory, exclude_source),
+        (directory, directory.rstrip("/"), exclude_source),
     ):
+        # lower()/LIKE is only a prefilter; samefile handles case and wildcard false matches
+        project = Path(row["project"])
         try:
-            if os.path.samefile(row["project"], directory):  # lower() is only a prefilter
+            if any(os.path.samefile(p, directory) for p in (project, *project.parents)):
                 found.append(row)
         except OSError:
             continue
@@ -511,10 +515,26 @@ def agent_argv(agent: str, pack: str, project: str) -> list[str]:
 AGENT_NAMES = {"claude-code": "Claude Code", "opencode": "OpenCode"}
 
 
+def project_or_exit(s) -> str:
+    project = s["project"]
+    if not project or not os.path.isdir(project):
+        err.print(f"[red]{s['id']} has no project directory on this machine ({escape(project or '?')})[/red]")
+        raise typer.Exit(1)
+    return project
+
+
+def require_on_path(cmd: str) -> None:
+    if shutil.which(cmd) is None:
+        err.print(f"[red]{cmd} isn't on your PATH[/red]")
+        raise typer.Exit(1)
+
+
 def pick_session(candidates: list):
-    err.print(f"[bold]Sessions in {escape(os.getcwd())}[/bold]\n")
+    err.print(f"[bold]Sessions in {escape(os.getcwd())} and below[/bold]\n")
     for i, r in enumerate(candidates, 1):
-        err.print(f"  {i}  [cyan]{r['id']}[/cyan]  {r['source']}  [dim]{rel_time(r['updated_at'])} · "
+        where = os.path.relpath(r["project"])
+        where = "" if where == "." else f"  [magenta]{escape(where)}/[/magenta]"
+        err.print(f"  {i}  [cyan]{r['id']}[/cyan]  {r['source']}{where}  [dim]{rel_time(r['updated_at'])} · "
                   f"{r['message_count']} msgs[/dim]  {escape((r['title'] or '')[:60])}")
     err.print()
     while True:
@@ -585,14 +605,11 @@ def switch_cmd(
     else:
         candidates = sessions_in(conn, os.getcwd(), exclude_source=provider)
         if not candidates:
-            err.print(f"[red]no session in {escape(os.getcwd())} from another agent — "
+            err.print(f"[red]no session in or under {escape(os.getcwd())} from another agent — "
                       "pass --from SESSION[/red]")
             raise typer.Exit(1)
         s = pick_session(candidates) if interactive and len(candidates) > 1 else candidates[0]
-    project = s["project"]
-    if not project or not os.path.isdir(project):
-        err.print(f"[red]{s['id']} has no project directory on this machine ({escape(project or '?')})[/red]")
-        raise typer.Exit(1)
+    project = project_or_exit(s)
 
     pack = build_pack(conn, s, max_chars) + SWITCH_FOOTER
     argv = agent_argv(provider, pack, project)
@@ -602,14 +619,49 @@ def switch_cmd(
         print_text(pack)
         err.print(f"would run in {project}: {shown}", markup=False, highlight=False, soft_wrap=True)
         return
-    if shutil.which(argv[0]) is None:
-        err.print(f"[red]{argv[0]} isn't on your PATH[/red]")
-        raise typer.Exit(1)
+    require_on_path(argv[0])
     if interactive:
         preview_switch(conn, s, pack, shown)
         typer.confirm(f"Continue in {AGENT_NAMES[provider]}?", default=True, abort=True, err=True)
     hint = " (press Enter there to send the pack)" if provider == "opencode" else ""
     err.print(f"continuing {s['id']} ({s['source']}) in {argv[0]}{hint}…",
               markup=False, highlight=False)
+    os.chdir(project)
+    os.execvp(argv[0], argv)
+
+
+def resume_argv(s, project: str) -> list[str]:
+    if s["source"] == "claude-code":
+        return ["claude", "--resume", s["source_id"]]
+    return ["opencode", "--session", s["source_id"], project]
+
+
+@app.command("resume", epilog=examples("bta resume", "bta resume a1b2 --dry-run"))
+def resume_cmd(
+    session: str = typer.Argument(None, help="Session to reopen. Default: pick from this "
+                                  "directory's recent sessions."),
+    dry_run: bool = typer.Option(False, "--dry-run", "-n",
+                                 help="Print the command instead of running it."),
+):
+    """Reopen a session in the agent it came from, in its project directory."""
+    conn = dbm.connect()
+    run_import(conn)
+    if session:
+        s = resolve_or_exit(conn, session)
+    else:
+        candidates = sessions_in(conn, os.getcwd())
+        if not candidates:
+            err.print(f"[red]no session in or under {escape(os.getcwd())} — pass a SESSION[/red]")
+            raise typer.Exit(1)
+        pick = not dry_run and stdin_is_terminal() and len(candidates) > 1
+        s = pick_session(candidates) if pick else candidates[0]
+    project = project_or_exit(s)
+    argv = resume_argv(s, project)
+
+    if dry_run:
+        print_text(f"cd {shlex.quote(project)} && {shlex.join(argv)}")
+        return
+    require_on_path(argv[0])
+    err.print(f"resuming {s['id']} in {argv[0]}…", markup=False, highlight=False)
     os.chdir(project)
     os.execvp(argv[0], argv)

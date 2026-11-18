@@ -7,7 +7,7 @@ flowchart LR
   S[bta switch --to PROVIDER] --> I[run_import: incremental, ~0.7s]
   I --> P{--from?}
   P -- yes --> R[resolve_or_exit]
-  P -- no --> L[sessions_in cwd, source != AGENT]
+  P -- no --> L[sessions_in cwd and below, source != AGENT]
   L --> PK{interactive and >1?}
   PK -- yes --> PICK[pick_session]
   PK -- no --> LATEST[newest]
@@ -32,7 +32,7 @@ The preview shows the session header, the last 10 requests with an `activity_lin
 
 ## Session choice
 
-Without `--from`, the candidates are up to 9 recent sessions whose `project` is the current directory and whose source isn't the target, newest first. `bta switch --to opencode` never offers an OpenCode session. Paths are prefiltered with `lower()` and confirmed with `os.path.samefile`, because macOS paths are case-insensitive (`~/Desktop` and `~/desktop` are the same folder).
+Without `--from`, the candidates are up to 9 recent sessions whose `project` is the current directory or a directory under it, and whose source isn't the target, newest first. From `~/Desktop/projects` you get sessions from every repo inside it; parents and siblings stay out. The picker shows the project path relative to the current directory when it isn't `.`. `bta switch --to opencode` never offers an OpenCode session. Paths are prefiltered in SQL with `lower()` and `LIKE dir || '/%'`, then confirmed by checking the project and each of its parents with `os.path.samefile`. That handles macOS's case-insensitive paths (`~/Desktop` and `~/desktop` are the same folder) and rejects `LIKE` wildcard matches from `_` or `%` in a path.
 
 ## Launch commands
 
@@ -42,6 +42,17 @@ Without `--from`, the candidates are up to 9 recent sessions whose `project` is 
 | OpenCode | `opencode --prompt <pack> <project>` | fills the input box in 2.0.x; you press Enter |
 
 OpenCode 2.0 stopped auto-submitting `--prompt` ([opencode#51135](https://github.com/anomalyco/opencode/issues/51135)). `switch` tells you to press Enter. Don't work around it with `opencode run`, which isn't interactive.
+
+## Resume
+
+`bta resume [SESSION]` reopens a session in its own agent. Without a SESSION it uses `sessions_in` with no excluded source, so both agents' sessions are offered. The picker shows when stdin is a terminal and more than one matches; otherwise it takes the newest. The picker is the only confirmation; there's no preview, because no pack is sent and nothing new is created. `-n/--dry-run` prints `cd <project> && <argv>` to stdout.
+
+| Source | argv |
+|---|---|
+| Claude Code | `claude --resume <source_id>` |
+| OpenCode | `opencode --session <source_id> <project>` |
+
+It shares `project_or_exit` and `require_on_path` with `switch`, and also `chdir`s before `execvp`, because Claude Code looks up sessions by the current directory.
 
 ## Contracts
 

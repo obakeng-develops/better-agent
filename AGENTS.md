@@ -11,9 +11,10 @@ This project keeps its knowledge in a Lode (https://fjzeit.github.io/lode) at `l
 ## Working conventions
 
 - One commit per logical change. Each commit passes `uv run pytest` on its own.
+- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): summary`, for example `feat(resume): …`, `fix(switch): …`, `docs(lode): …`.
 - No AI co-author or attribution lines in commits.
-- When a feature or fix lands, bump `version` in `pyproject.toml`, run `uv sync`, commit as `Release X.Y.Z`, and tag it `vX.Y.Z`. Breaking changes bump the minor version while we're pre-1.0.
+- When a feature or fix lands, bump `version` in `pyproject.toml`, run `uv sync`, commit as `chore(release): X.Y.Z`, and tag it `vX.Y.Z`. Breaking changes bump the minor version while we're pre-1.0.
 - Design every command and flag against [clig.dev](https://clig.dev/). The rules we apply are in `lode/practices.md`.
 - Shape new work as a pitch in `lode/plans/` (problem, appetite, solution, rabbit holes, no-gos) before building it. Pitches marked "not scheduled" wait for the user's go-ahead.
 - No new runtime dependencies beyond typer and rich without asking.
-- There's no git remote. Don't add one or push.
+- The remote is `origin` on GitHub (`obakeng-develops/better-agent`). Changes go up as stacked PRs against `main`, one PR per logical change, each based on the one before. Push only when asked.
