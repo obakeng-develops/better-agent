@@ -9,10 +9,12 @@ Each agent keeps its history in its own place and its own format. When you want 
 ## Installing bta
 
 ```sh
-uv tool install .
+uv tool install git+https://github.com/obakeng-develops/better-agent@v0.8.0
 ```
 
-This puts `bta` on your PATH. While you work on `bta` itself, run it with `uv run bta …` instead.
+This puts `bta` on your PATH. Replace `v0.8.0` with any version from the [releases page](https://github.com/obakeng-develops/better-agent/releases), which also has the wheel and source for each one.
+
+From a clone, run `uv tool install .` instead. While you work on `bta` itself, run it with `uv run bta …`.
 
 To uninstall, run `uv tool uninstall better-agent`. To delete the index too, run `rm -r ~/.local/share/better-agent`.
 
