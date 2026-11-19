@@ -19,4 +19,5 @@
   - [switch-to-option.md](plans/switch-to-option.md): implemented in 0.7.0; `bta switch --to` makes the destination explicit.
   - [switch-subdirectories.md](plans/switch-subdirectories.md): implemented in 0.7.1; the `bta switch` picker also offers sessions from directories below the current one.
   - [resume.md](plans/resume.md): implemented in 0.7.2; `bta resume` reopens a session in its own agent.
+  - [releases.md](plans/releases.md): implemented; pushing a `v*` tag builds and publishes a GitHub release.
 - tmp/: session scraps (git-ignored)
